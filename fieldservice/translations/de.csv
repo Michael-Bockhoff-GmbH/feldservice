@@ -64,6 +64,8 @@
 "Remote & Mileage","Fernarbeit & Kilometer"
 "Remote Visit","Fernarbeit"
 "No physical visit took place - controls what happens with the signature (see Site Visit Settings).","Es fand kein Vor-Ort-Termin statt - steuert, was mit der Unterschrift passiert (siehe Site Visit Settings)."
+"Different Start Location","Abweichender Startort"
+"Check this to enter a Start Address below when not starting from the Default Start Address (Site Visit Settings) or the Company's default address for this visit - e.g. driving in from home or straight from the previous customer.","Anhaken, um unten eine Startadresse einzutragen, wenn dieser Einsatz nicht von der Default Start Address (Site Visit Settings) bzw. der Standardadresse der Firma aus startet - z. B. Anfahrt von zuhause oder direkt vom vorherigen Kunden."
 "Start Address","Startadresse"
 "Free-text address, no Address record required - search-as-you-type via OpenStreetMap. Overrides the default mileage start point (Site Visit Settings, or the Company's default address) for this visit only.","Freitext-Adresse, kein Address-Datensatz noetig - Sofortsuche waehrend der Eingabe ueber OpenStreetMap. Ueberschreibt den Standard-Startpunkt fuer die Kilometerberechnung (Site Visit Settings bzw. die Standardadresse der Firma) nur fuer diesen Einsatz."
 "Don't Use Customer's Default Address","Kundenstandard-Adresse nicht verwenden"

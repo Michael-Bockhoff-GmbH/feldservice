@@ -29,6 +29,7 @@
   "breaks",
   "section_break_remote",
   "is_remote",
+  "override_start_address",
   "start_address",
   "ignore_customer_default_address",
   "customer_address_override",
@@ -199,7 +200,15 @@
    "label": "Remote Visit"
   },
   {
+   "default": "0",
    "depends_on": "eval:!doc.is_remote",
+   "description": "Check this to enter a Start Address below when not starting from the Default Start Address (Site Visit Settings) or the Company's default address for this visit - e.g. driving in from home or straight from the previous customer.",
+   "fieldname": "override_start_address",
+   "fieldtype": "Check",
+   "label": "Different Start Location"
+  },
+  {
+   "depends_on": "eval:!doc.is_remote && doc.override_start_address",
    "description": "Free-text address, no Address record required - search-as-you-type via OpenStreetMap. Overrides the default mileage start point (Site Visit Settings, or the Company's default address) for this visit only.",
    "fieldname": "start_address",
    "fieldtype": "Autocomplete",

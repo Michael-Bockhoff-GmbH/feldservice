@@ -441,8 +441,11 @@ bleiben zusätzlich mindestens 1,1 Sekunden auseinander.
 Startadresse (in dieser Reihenfolge, erste gefundene gewinnt):
 
 1. Feld **Start Address** direkt am Site Visit (Überschreibung für diesen
-   einen Einsatz, z. B. wenn der Techniker von einem anderen Einsatz aus
-   direkt weiterfährt)
+   einen Einsatz, z. B. wenn der Techniker von zuhause oder von einem
+   anderen Einsatz aus direkt weiterfährt). Sichtbar erst, nachdem der
+   Haken **"Different Start Location"** gesetzt wurde (sonst ausgeblendet,
+   da im Normalfall — Start von der Firma bzw. der hinterlegten Default
+   Start Address — nicht gebraucht)
 2. **Default Start Address** in Site Visit Settings
 3. Standardadresse der am Site Visit hinterlegten **Company** (dafür
    weiterhin ein echter ERPNext-Address-Datensatz — Firmenadressen sind
