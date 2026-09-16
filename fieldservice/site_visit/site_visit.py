@@ -290,6 +290,14 @@ def _create_sales_order(doc, segments):
 	so.company = doc.company
 	so.project = doc.project or None
 	so.po_no = doc.customer_reference
+	# transaction_date = delivery_date = Einsatzdatum, nicht "heute": der
+	# Auftrag entsteht ja erst nachtraeglich beim Buchen. Ohne
+	# delivery_date lehnt ERPNext den Auftrag mit "Please enter Delivery
+	# Date" ab (validate_delivery_date in sales_order.py); waere
+	# delivery_date < transaction_date (Default "heute"), kaeme stattdessen
+	# "Expected Delivery Date should be after Sales Order Date".
+	so.transaction_date = doc.date
+	so.delivery_date = doc.date
 	so.append("items", _get_time_item(doc, segments))
 	for row in pending:
 		so.append("items", {"item_code": row.item_code, "qty": row.qty, "uom": row.uom, "rate": row.rate})
