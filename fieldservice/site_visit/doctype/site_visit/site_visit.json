@@ -83,6 +83,7 @@
    "options": "Project"
   },
   {
+   "depends_on": "eval:!doc.create_sales_order",
    "description": "Must be set before submitting - not required yet when saving as a draft (e.g. via the timer). If there isn't one yet, check \"Create Sales Order\" below instead of picking one here.",
    "fieldname": "sales_order",
    "fieldtype": "Link",
