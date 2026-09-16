@@ -8,6 +8,7 @@
   "ors_api_key",
   "default_start_address",
   "column_break_mileage",
+  "mileage_item",
   "hardware_section",
   "hardware_item_group",
   "remote_section",
@@ -24,7 +25,7 @@
   {
    "description": "Free API key from openrouteservice.org, used to calculate the driving distance for a Site Visit.",
    "fieldname": "ors_api_key",
-   "fieldtype": "Data",
+   "fieldtype": "Password",
    "label": "OpenRouteService API Key"
   },
   {
@@ -37,6 +38,13 @@
   {
    "fieldname": "column_break_mileage",
    "fieldtype": "Column Break"
+  },
+  {
+   "description": "Item whose Selling Price List rate is billed per kilometer when \"Calculate Mileage\" adds a line to the Site Visit's Sales Order (round trip by default, see \"One-Way Trip Only\" on the Site Visit). Leave empty to not bill mileage automatically.",
+   "fieldname": "mileage_item",
+   "fieldtype": "Link",
+   "label": "Mileage Item",
+   "options": "Item"
   },
   {
    "fieldname": "hardware_section",

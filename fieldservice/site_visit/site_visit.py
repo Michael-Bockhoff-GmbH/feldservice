@@ -97,7 +97,7 @@ def before_submit(doc, method=None):
 		alert=True,
 	)
 
-	_sync_extra_items_to_sales_order(doc)
+	_sync_sales_order(doc)
 
 
 def _validate_signature(doc):
@@ -163,38 +163,81 @@ def _get_work_segments(doc):
 	return segments
 
 
-def _sync_extra_items_to_sales_order(doc):
-	"""Ungebuchte Zusatzartikel (Feld extra_items) in den verknuepften Auftrag
-	uebernehmen - im selben Request wie das Buchen, aus demselben Grund wie
-	die Timesheet-Erstellung oben. Bereits mit added_to_order=1 markierte
-	Zeilen wurden schon ueber create_sales_order() unten in einen neu
-	angelegten Auftrag aufgenommen und werden hier uebersprungen.
+def _sync_sales_order(doc):
+	"""Ungebuchte Zusatzartikel (Feld extra_items) und, falls berechnet, eine
+	Fahrtkosten-Position in den verknuepften Auftrag uebernehmen - im selben
+	Request wie das Buchen, aus demselben Grund wie die Timesheet-Erstellung
+	oben. Bereits mit added_to_order=1 markierte Zusatzartikel-Zeilen wurden
+	schon ueber create_sales_order() unten in einen neu angelegten Auftrag
+	aufgenommen und werden hier uebersprungen.
 
 	Nutzt erpnext.controllers.accounts_controller.update_child_qty_rate -
 	dieselbe Funktion, die auch der "Update Items"-Dialog im Auftrag selbst
 	verwendet - statt den Auftrag hier von Hand zu veraendern: das uebernimmt
 	auch bei bereits gebuchten Auftraegen korrekt Steuer-/Summenneuberechnung,
-	Kreditlimitpruefung usw."""
-	pending = [row for row in doc.extra_items if not row.added_to_order]
-	if not pending:
+	Kreditlimitpruefung usw. Beide Positionsarten in einem Aufruf, damit der
+	Auftrag dafuer nur einmal statt zweimal hintereinander gespeichert wird."""
+	pending_items = [row for row in doc.extra_items if not row.added_to_order]
+	if not pending_items and not _mileage_billable(doc):
 		return
 
 	from erpnext.controllers.accounts_controller import update_child_qty_rate
 
 	so = frappe.get_doc("Sales Order", doc.sales_order)
+	mileage_line = _get_mileage_line(doc, so)
+
 	trans_items = []
 	for row in so.items:
 		item = row.as_dict()
 		item["docname"] = row.name
 		trans_items.append(item)
-	for row in pending:
+	for row in pending_items:
 		trans_items.append({"item_code": row.item_code, "qty": row.qty, "uom": row.uom, "rate": row.rate})
+	if mileage_line:
+		trans_items.append(mileage_line)
 
 	with _as_administrator():
 		update_child_qty_rate("Sales Order", frappe.as_json(trans_items), so.name)
 
-	for row in pending:
+	for row in pending_items:
 		row.added_to_order = 1
+
+
+def _mileage_billable(doc):
+	"""Ob ueberhaupt eine Fahrtkosten-Position in Frage kommt - siehe
+	_get_mileage_line fuer die Bedingungen. Getrennt von dort, damit
+	_sync_sales_order oben den Auftrag nicht unnoetig laedt, wenn weder
+	Zusatzartikel noch Kilometer etwas zu tun haben."""
+	if not doc.distance_km:
+		return False
+	settings = frappe.get_cached_doc("Site Visit Settings")
+	return bool(settings.mileage_item)
+
+
+def _get_mileage_line(doc, so):
+	"""Fahrtkosten-Position (Kilometer x Fahrtkosten-Artikel) fuer den
+	verknuepften Auftrag - siehe _mileage_billable fuer die Bedingungen.
+	Abgerechnet wird standardmaessig Hin- und Rueckweg (2x distance_km) -
+	"One-Way Trip Only" am Site Visit rechnet nur die einfache Strecke ab,
+	z. B. wenn der Techniker direkt zum naechsten Kunden weiterfaehrt.
+
+	Der Preis kommt aus der Standard-Verkaufspreisliste des Auftrags
+	(dieselbe Preisfindung, die auch beim normalen Hinzufuegen eines
+	Artikels im Auftrag greift) - kein manuell eingetragener Satz wie bei
+	den Zusatzartikeln oben, da hier niemand von Hand einen Preis eintraegt."""
+	if not _mileage_billable(doc):
+		return None
+
+	from erpnext.stock.get_item_details import get_item_price
+
+	settings = frappe.get_cached_doc("Site Visit Settings")
+	item = frappe.get_cached_doc("Item", settings.mileage_item)
+	billed_km = doc.distance_km if doc.one_way_only else doc.distance_km * 2
+
+	prices = get_item_price({"price_list": so.selling_price_list, "uom": item.stock_uom}, item.name)
+	rate = prices[0]["price_list_rate"] if prices else 0
+
+	return {"item_code": item.name, "qty": billed_km, "rate": rate, "uom": item.stock_uom}
 
 
 @frappe.whitelist()

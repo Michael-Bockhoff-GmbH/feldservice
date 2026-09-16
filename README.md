@@ -68,7 +68,7 @@ fieldservice/
     │   └── site_visits.json     # Eigene Sidebar (Site Visit + Timesheet, kein Home-Link)
     ├── site_visit/            # Modul "Site Visit"
     │   ├── doctype/
-    │   │   ├── site_visit/          # Haupt-Doctype (submittable)
+    │   │   ├── site_visit/          # Haupt-Doctype (submittable) + site_visit_calendar.js
     │   │   ├── site_visit_photo/    # Kindtabelle für Fotos
     │   │   ├── site_visit_item/     # Kindtabelle für Zusatzartikel
     │   │   ├── site_visit_break/    # Kindtabelle für Pausen (Timer)
@@ -351,8 +351,9 @@ die App-weiten Einstellungen von Site Visit:
 
 | Bereich | Feld | Bedeutung |
 |---|---|---|
-| Kilometer | OpenRouteService API Key | Kostenloser Key von [openrouteservice.org](https://openrouteservice.org) — ohne Key funktioniert "Kilometer berechnen" nicht. |
+| Kilometer | OpenRouteService API Key | Kostenloser Key von [openrouteservice.org](https://openrouteservice.org) — ohne Key funktioniert "Kilometer berechnen" nicht. Feldtyp **Password**, daher verschlüsselt gespeichert und im Formular maskiert. |
 | Kilometer | Default Start Address | Startpunkt, falls der Site Visit selbst keine eigene Startadresse hat. Leer = Standardadresse der Firma. |
+| Kilometer | Mileage Item | Artikel, dessen Verkaufspreis pro Kilometer als Fahrtkosten-Position im Auftrag berechnet wird. Leer = keine automatische Fahrtkosten-Abrechnung. |
 | Zusätzliche Artikel | Hardware Item Group | Nur Artikel aus dieser Gruppe (inkl. Untergruppen) sind als Zusatzartikel wählbar. Leer = keine Einschränkung. |
 | Fernarbeit | Remote Visit Mode | "Hide Signature" (Unterschriftsfelder ausblenden) oder "Send Signing Link to Customer" (Link per E-Mail). |
 | Fernarbeit | Signature Required | Ohne Unterschrift nicht buchbar — außer bei Fernarbeit im Modus "Hide Signature". |
@@ -381,6 +382,43 @@ schlägt die Berechnung mit einer verständlichen Fehlermeldung fehl — die
 Kilometerberechnung ist eine Komfortfunktion, kein Teil der
 `before_submit`-Pflichtprüfung, ein Site Visit lässt sich auch ohne
 Kilometer buchen.
+
+### Fahrtkosten im Auftrag
+
+Ist in Site Visit Settings ein **Mileage Item** hinterlegt, übernimmt
+`_get_mileage_line()`/`_sync_sales_order()` in `site_visit/site_visit.py`
+beim Buchen zusätzlich zu den Zusatzartikeln eine Fahrtkosten-Position in
+den verknüpften Auftrag — Menge = Kilometer, Satz = Verkaufspreis des
+Mileage Item aus der Preisliste des Auftrags (genau wie beim normalen
+Hinzufügen eines Artikels im Auftrag). **Voreinstellung ist Hin- und
+Rückweg** (`distance_km × 2`); der Haken **"One-Way Trip Only"** am Site
+Visit rechnet stattdessen nur die einfache Strecke ab, z. B. wenn der
+Techniker direkt zum nächsten Kunden weiterfährt statt zurückzufahren.
+Auch das ist rein optional: ohne berechnete Kilometer oder ohne
+konfiguriertes Mileage Item passiert nichts.
+
+## Terminplanung
+
+Ein Site Visit lässt sich auch **im Voraus** anlegen, bevor der Einsatz
+stattfindet: die Felder **Scheduled Start**/**Scheduled End** (getrennt von
+`from_time`/`to_time`, die weiterhin die *tatsächliche* Einsatzzeit über den
+Timer festhalten) markieren ein geplantes Termin-Zeitfenster. Ein
+Dispatcher/Projects Manager legt dazu einen Entwurf mit Kunde, Employee und
+diesen beiden Feldern an — ohne `from_time` lässt sich der Entwurf trotzdem
+speichern (siehe "Timer" oben), sodass daraus noch kein laufender Timer
+wird. Der Techniker öffnet den vorbereiteten Site Visit später einfach und
+klickt "Start Timer" wie gewohnt.
+
+Über `hooks.py` → `calendars = ["Site Visit"]` plus
+`site_visit/doctype/site_visit/site_visit_calendar.js` (automatisch anhand
+des Dateinamens geladen, kein zusätzlicher Hook-Eintrag nötig — derselbe
+Mechanismus wie bei ERPNexts eigenen `task_calendar.js`/
+`job_card_calendar.js`) bekommt "Site Visit" in der Listenansicht einen
+**Kalender**-Ansichtswechsler, gefiltert nach Employee/Customer. Bewusst
+zunächst nur ein lokaler Kalender innerhalb von ERPNext — für eine spätere
+Anbindung an Office 365/Outlook wären `scheduled_start`/`scheduled_end` die
+Felder, die ein Sync-Job gegen die Microsoft-Graph-API abgleichen müsste;
+das ist noch nicht gebaut.
 
 ## Fernarbeit
 
@@ -494,3 +532,13 @@ User/Accounts Manager/Projects User (nur lesen).
   die kumulierte Ist-Zeit **gesetzt** wird, und wie das mit dem separaten
   Rechnungsimport (Timesheet → Rechnungsposition) zusammenspielt, ohne
   Stunden doppelt zu zählen.
+- **Zurückgestellt:** Offline-Fähigkeit (Timer/Fotos/Unterschrift auch ohne
+  Netzverbindung nutzbar, mit Synchronisierung sobald wieder online). Kein
+  Standard-Frappe-Verhalten (Desk-Oberfläche braucht durchgehend eine
+  Verbindung) - würde eine eigene Service-Worker-/Offline-Queue-Architektur
+  erfordern. Bewusst zurückgestellt, um zuerst Kilometer-Abrechnung und
+  Terminplanung umzusetzen.
+- Office-365/Outlook-Synchronisierung für die Terminplanung (siehe
+  "Terminplanung" oben) - `scheduled_start`/`scheduled_end` sind als
+  Andockpunkt für einen künftigen Sync-Job über die Microsoft-Graph-API
+  gedacht, aber noch nicht angebunden.

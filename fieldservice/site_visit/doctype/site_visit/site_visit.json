@@ -12,6 +12,10 @@
   "column_break_1",
   "project",
   "sales_order",
+  "section_break_schedule",
+  "scheduled_start",
+  "column_break_schedule",
+  "scheduled_end",
   "section_break_zeit",
   "employee",
   "employee_name",
@@ -26,6 +30,7 @@
   "start_address",
   "column_break_remote",
   "distance_km",
+  "one_way_only",
   "section_break_description",
   "description",
   "section_break_items",
@@ -81,6 +86,26 @@
    "fieldtype": "Link",
    "label": "Sales Order",
    "options": "Sales Order"
+  },
+  {
+   "fieldname": "section_break_schedule",
+   "fieldtype": "Section Break",
+   "label": "Scheduled Appointment"
+  },
+  {
+   "description": "Planned appointment window - independent of From Time/To Time below, which record when the visit actually happened. Set this to schedule a visit in advance and have it show up on the \"Site Visit\" calendar view; leave empty for a visit that is only recorded after the fact.",
+   "fieldname": "scheduled_start",
+   "fieldtype": "Datetime",
+   "label": "Scheduled Start"
+  },
+  {
+   "fieldname": "column_break_schedule",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "scheduled_end",
+   "fieldtype": "Datetime",
+   "label": "Scheduled End"
   },
   {
    "fieldname": "section_break_zeit",
@@ -169,6 +194,14 @@
    "fieldtype": "Float",
    "label": "Distance (km)",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "depends_on": "distance_km",
+   "description": "E.g. driving straight on to the next customer afterwards - bills only the one-way distance instead of a round trip (see Site Visit Settings -> Mileage Item).",
+   "fieldname": "one_way_only",
+   "fieldtype": "Check",
+   "label": "One-Way Trip Only"
   },
   {
    "fieldname": "section_break_description",

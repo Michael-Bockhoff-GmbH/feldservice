@@ -44,7 +44,8 @@ def calculate_distance_km(doc):
 	frappe.ValidationError mit verstaendlicher Meldung bei fehlendem
 	API-Key, fehlender/nicht auffindbarer Adresse oder API-Fehler."""
 	settings = frappe.get_cached_doc("Site Visit Settings")
-	if not settings.ors_api_key:
+	api_key = settings.get_password("ors_api_key", raise_exception=False)
+	if not api_key:
 		frappe.throw(
 			_("No OpenRouteService API key configured. Set one in Site Visit Settings."), title=_("Mileage")
 		)
@@ -65,9 +66,9 @@ def calculate_distance_km(doc):
 	if not customer_address:
 		frappe.throw(_("Customer {0} has no address on file.").format(doc.customer), title=_("Mileage"))
 
-	start_coords = _geocode(start_address, settings.ors_api_key)
-	end_coords = _geocode(customer_address, settings.ors_api_key)
-	return _route_distance_km(start_coords, end_coords, settings.ors_api_key)
+	start_coords = _geocode(start_address, api_key)
+	end_coords = _geocode(customer_address, api_key)
+	return _route_distance_km(start_coords, end_coords, api_key)
 
 
 def _address_text(address_name):

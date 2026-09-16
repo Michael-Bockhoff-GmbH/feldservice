@@ -44,6 +44,17 @@ doctype_js = {
 }
 
 # ---------------------------------------------------------------------------
+# Kalenderansicht fuer geplante Site Visits (scheduled_start/scheduled_end)
+#
+# site_visit_calendar.js liegt direkt im Doctype-Ordner und wird darueber
+# allein durch den Dateinamen automatisch geladen (kein Eintrag in
+# doctype_js noetig - derselbe Mechanismus wie bei ERPNexts eigenen
+# task_calendar.js/job_card_calendar.js). Der Hook hier schaltet nur den
+# "Calendar"-Ansichtswechsler in der Listenansicht frei.
+# ---------------------------------------------------------------------------
+calendars = ["Site Visit"]
+
+# ---------------------------------------------------------------------------
 # Serverseitige Logik im selben Request wie das jeweilige Buchen
 #
 # Beide Hooks laufen innerhalb derselben Transaktion wie das Setzen von
