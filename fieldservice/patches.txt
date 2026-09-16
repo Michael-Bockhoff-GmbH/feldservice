@@ -1,1 +1,2 @@
 # Patches werden hier in Ausfuehrungsreihenfolge eingetragen
+fieldservice.patches.add_timesheet_detail_sales_order
