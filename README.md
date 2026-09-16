@@ -175,6 +175,8 @@ bench --site <deine-site> uninstall-app fieldservice
 - die Formular-Skripte, da sie reiner Code sind
 - die Zeile `Site Visit` in `PDF on Submit Settings` (nur falls
   `pdf_on_submit` installiert ist – `before_uninstall` räumt sie mit auf)
+- die drei Shortcuts (Site Visit, Timesheet, Zeit Projekt Einstellungen)
+  auf ERPNexts Standard-"Home"-Workspace (siehe "Eigene App im Desk")
 
 **Was bewusst bestehen bleibt:**
 
@@ -259,6 +261,15 @@ Die App bringt ein eigenes Logo mit
 `add_to_apps_screen`/`app_logo_url` in `hooks.py` als eigene Kachel auf der
 Apps-Übersicht (`/apps`), inklusive einer eigenen Workspace mit
 Verknüpfungen zu "Site Visit" und "Timesheet".
+
+Zusätzlich ergänzt `install.py` (`_home_workspace_enable`/
+`_home_workspace_disable`) drei Shortcuts auf ERPNexts Standard-**"Home"**-
+Workspace — **Site Visit**, **Timesheet**, **Zeit Projekt Einstellungen** —
+damit die App auch von der normalen Startseite aus auffindbar ist, ohne
+erst über die Apps-Übersicht zu gehen. Rein additiv: bestehende
+Shortcuts/Karten auf Home bleiben unangetastet, `before_uninstall` entfernt
+beim Deinstallieren exakt diese drei Einträge wieder (identifiziert über
+ihr Label, siehe `HOME_SHORTCUTS` in `install.py`).
 
 ## Auftrag
 

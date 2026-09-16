@@ -1,3 +1,5 @@
+import json
+
 import click
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
@@ -73,6 +75,23 @@ ALTE_CLIENT_SCRIPTS = [
 SITE_VISIT_DOCTYPE = "Site Visit"
 SITE_VISIT_PRINT_FORMAT = "Site Visit Report"
 
+# ---------------------------------------------------------------------------
+# Verknuepfungen auf ERPNexts Standard-"Home"-Workspace
+#
+# Zusaetzlich zur eigenen App-Kachel (add_to_apps_screen in hooks.py) sollen
+# Site Visit/Zeit Projekt auch gleich auf der Startseite auffindbar sein,
+# ohne extra ueber die Apps-Uebersicht zu gehen. label ist zugleich der
+# eindeutige Schluessel, ueber den before_uninstall die hier ergaenzten
+# Shortcuts wiederfindet - bestehende Shortcuts/Karten auf Home bleiben
+# unangetastet.
+# ---------------------------------------------------------------------------
+HOME_WORKSPACE = "Home"
+HOME_SHORTCUTS = [
+	{"label": "Site Visit", "type": "DocType", "link_to": "Site Visit", "doc_view": "List", "color": "Blue"},
+	{"label": "Timesheet", "type": "DocType", "link_to": "Timesheet", "doc_view": "List", "color": "Orange"},
+	{"label": "Zeit Projekt Einstellungen", "type": "DocType", "link_to": "Zeit Projekt Einstellungen", "color": "Green"},
+]
+
 
 def after_install():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
@@ -80,6 +99,7 @@ def after_install():
 	click.secho("Zeit & Projekt: Felder angelegt.", fg="green")
 
 	_pdf_on_submit_enable()
+	_home_workspace_enable()
 
 
 def before_uninstall():
@@ -105,6 +125,7 @@ def before_uninstall():
 	)
 
 	_pdf_on_submit_disable()
+	_home_workspace_disable()
 
 
 def _deaktiviere_alte_client_scripts():
@@ -155,3 +176,69 @@ def _pdf_on_submit_disable():
 		settings.append("enabled_for", row)
 	settings.save(ignore_permissions=True)
 	click.secho("Site Visit: Eintrag in PDF on Submit Settings entfernt.", fg="yellow")
+
+
+def _home_workspace_enable():
+	"""Ergaenzt HOME_SHORTCUTS auf der "Home"-Workspace - rein additiv, damit
+	Site Visit/Zeit Projekt gleich auf der Startseite auffindbar sind, ohne
+	die bestehenden Shortcuts/Karten dort zu veraendern. Ueberspringt bereits
+	vorhandene Eintraege (z. B. bei einer erneuten Installation)."""
+	if not frappe.db.exists("Workspace", HOME_WORKSPACE):
+		return
+
+	home = frappe.get_doc("Workspace", HOME_WORKSPACE)
+	existing_labels = {row.label for row in home.shortcuts}
+	neu = [shortcut for shortcut in HOME_SHORTCUTS if shortcut["label"] not in existing_labels]
+	if not neu:
+		return
+
+	for shortcut in neu:
+		home.append("shortcuts", shortcut)
+
+	content = json.loads(home.content)
+	# Neue Shortcut-Bloecke direkt nach dem letzten bestehenden einfuegen,
+	# damit sie in derselben Zeile wie "Item"/"Customer"/... erscheinen,
+	# statt irgendwo anders auf der Seite aufzutauchen.
+	insert_at = next((i for i in range(len(content) - 1, -1, -1) if content[i].get("type") == "shortcut"), -1) + 1
+	for shortcut in neu:
+		content.insert(
+			insert_at,
+			{"id": frappe.generate_hash(length=10), "type": "shortcut", "data": {"shortcut_name": shortcut["label"], "col": 3}},
+		)
+		insert_at += 1
+	home.content = json.dumps(content)
+
+	home.save(ignore_permissions=True)
+	click.secho(
+		f"IT Support mit Außendienst: {len(neu)} Verknuepfung(en) auf der Home-Seite ergaenzt "
+		f"({', '.join(s['label'] for s in neu)}).",
+		fg="green",
+	)
+
+
+def _home_workspace_disable():
+	"""Entfernt genau die in HOME_SHORTCUTS gelisteten Eintraege wieder von
+	Home - alles andere auf der Seite bleibt unangetastet."""
+	if not frappe.db.exists("Workspace", HOME_WORKSPACE):
+		return
+
+	home = frappe.get_doc("Workspace", HOME_WORKSPACE)
+	unsere_labels = {shortcut["label"] for shortcut in HOME_SHORTCUTS}
+	verbleibend = [row for row in home.shortcuts if row.label not in unsere_labels]
+	if len(verbleibend) == len(home.shortcuts):
+		return
+
+	home.shortcuts = []
+	for row in verbleibend:
+		home.append("shortcuts", row)
+
+	content = json.loads(home.content)
+	content = [
+		block
+		for block in content
+		if not (block.get("type") == "shortcut" and block.get("data", {}).get("shortcut_name") in unsere_labels)
+	]
+	home.content = json.dumps(content)
+
+	home.save(ignore_permissions=True)
+	click.secho("IT Support mit Außendienst: Verknuepfungen von der Home-Seite entfernt.", fg="yellow")
