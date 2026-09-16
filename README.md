@@ -428,6 +428,16 @@ im Formular nötig. Schlägt die Suche fehl (Netzwerk-/API-Fehler), bleibt
 die Vorschlagsliste einfach leer, statt das Formular zu unterbrechen —
 frei eingetippter Text ohne Vorschlagsauswahl bleibt jederzeit nutzbar.
 
+Frappes Autocomplete-Feld fragt bei **jedem** Tastendruck neu an, ganz ohne
+eigenes Debouncing — was Nominatims Limit von maximal einer Anfrage pro
+Sekunde (site-weit) beim Tippen eines längeren Adressnamens allein schon
+reißen würde und zu einer vorübergehenden Sperre führt. Da das Frappe-Kern
+ist und nicht gepatcht wird, bremst/bündelt `search_addresses()` das selbst:
+Text unter 3 Zeichen wird ignoriert, ein kurzes Debounce verwirft veraltete
+(durch neuere Tastendrücke überholte) Anfragen, Ergebnisse werden pro
+Suchtext kurz zwischengespeichert, und tatsächliche Nominatim-Anfragen
+bleiben zusätzlich mindestens 1,1 Sekunden auseinander.
+
 Startadresse (in dieser Reihenfolge, erste gefundene gewinnt):
 
 1. Feld **Start Address** direkt am Site Visit (Überschreibung für diesen
@@ -442,7 +452,9 @@ Zieladresse (in dieser Reihenfolge):
 
 1. Feld **Customer Site Address** direkt am Site Visit — z. B. eine
    Außenstelle/ein Remote Office des Kunden, abweichend von dessen
-   hinterlegter Standardadresse
+   hinterlegter Standardadresse. Sichtbar erst, nachdem der Haken
+   **"Don't Use Customer's Default Address"** gesetzt wurde (sonst
+   ausgeblendet, da im Normalfall nicht gebraucht)
 2. Standardadresse des am Site Visit gewählten **Customer** — außer der
    Haken **"Don't Use Customer's Default Address"** ist gesetzt (z. B.
    weil die hinterlegte Adresse für diesen Einsatz bekanntermaßen falsch

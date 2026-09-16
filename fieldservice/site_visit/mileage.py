@@ -28,6 +28,8 @@ Meldung - die Kilometerberechnung ist eine Komfortfunktion, kein Teil der
 before_submit-Pflichtpruefung, ein Site Visit laesst sich auch ohne
 Kilometer buchen."""
 
+import time
+
 import frappe
 from frappe import _
 
@@ -35,6 +37,13 @@ GEOCODE_URL = "https://api.openrouteservice.org/geocode/search"
 DIRECTIONS_URL = "https://api.openrouteservice.org/v2/directions/driving-car"
 NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
 REQUEST_TIMEOUT = 10
+
+# search_addresses(): siehe deren Docstring - Nominatims Nutzungsbedingungen
+# erlauben maximal 1 Anfrage pro Sekunde, insgesamt fuer die ganze Site.
+SEARCH_MIN_CHARS = 3
+SEARCH_DEBOUNCE_SECONDS = 0.4
+SEARCH_MIN_INTERVAL_SECONDS = 1.1
+SEARCH_CACHE_SECONDS = 300
 
 
 def get_start_text(doc):
@@ -171,6 +180,23 @@ def search_addresses(txt):
 	Adress-Autovervollstaendigung, siehe Modul-Docstring oben fuer den
 	Hintergrund (403 Forbidden ohne User-Agent-Header).
 
+	Frappes Autocomplete-Control (frappe/public/js/frappe/form/controls/
+	autocomplete.js) ruft diese Methode bei jedem Tastendruck neu auf, ganz
+	ohne eigenes Debouncing oder Mindestlaenge - allein dadurch reisst schon
+	das Tippen eines laengeren Adressnamens Nominatims Nutzungsbedingungen
+	(max. 1 Anfrage/Sekunde), was zu einer voruebergehenden Sperre fuehrt
+	("Suche ging kurz, dann nicht mehr"). Da dieses Control Frappe-Kern ist
+	und nicht gepatcht wird, passiert das Bremsen/Buendeln hier serverseitig:
+
+	1. Text unter SEARCH_MIN_CHARS Zeichen wird gar nicht erst gesucht.
+	2. "Debounce": kurz warten, dann abbrechen, falls in der Zwischenzeit
+	   schon ein neuerer Tastendruck fuer denselben Benutzer eingetroffen
+	   ist (dieser Aufruf ist damit veraltet).
+	3. Ergebnisse werden pro Suchtext eine Weile zwischengespeichert, damit
+	   erneutes Tippen/Fokussieren desselben Texts keine neue Anfrage ausloest.
+	4. Als letzte Absicherung: tatsaechliche Nominatim-Anfragen bleiben
+	   mindestens SEARCH_MIN_INTERVAL_SECONDS auseinander.
+
 	Gibt fertige, bereits lesbare Adresszeilen zurueck (label == value) -
 	kein Nachformatieren im Formular noetig wie bei Frappes eigener
 	Autovervollstaendigung, die stattdessen ein JSON-Objekt mit
@@ -178,8 +204,27 @@ def search_addresses(txt):
 	still zu einer leeren Vorschlagsliste fehl, statt das Formular mit
 	einem Fehlerdialog zu unterbrechen - es ist nur eine Sucheingabe-
 	Komfortfunktion, freier Text bleibt jederzeit moeglich."""
-	if not txt:
+	if not txt or len(txt) < SEARCH_MIN_CHARS:
 		return []
+
+	cache = frappe.cache()
+	cache_key = f"site_visit_addr_search::{txt.lower()}"
+	cached = cache.get_value(cache_key)
+	if cached is not None:
+		return cached
+
+	pending_key = f"site_visit_addr_pending::{frappe.session.user}"
+	cache.set_value(pending_key, txt, expires_in_sec=10)
+	time.sleep(SEARCH_DEBOUNCE_SECONDS)
+	if cache.get_value(pending_key) != txt:
+		return []  # durch einen neueren Tastendruck ueberholt
+
+	last_call_key = "site_visit_addr_last_call"
+	last_call = cache.get_value(last_call_key)
+	now = time.time()
+	if last_call is not None and (wait := SEARCH_MIN_INTERVAL_SECONDS - (now - last_call)) > 0:
+		time.sleep(wait)
+	cache.set_value(last_call_key, time.time(), expires_in_sec=10)
 
 	import requests
 
@@ -195,7 +240,9 @@ def search_addresses(txt):
 	except requests.RequestException:
 		return []
 
-	return [{"label": result["display_name"], "value": result["display_name"]} for result in r.json()]
+	results = [{"label": result["display_name"], "value": result["display_name"]} for result in r.json()]
+	cache.set_value(cache_key, results, expires_in_sec=SEARCH_CACHE_SECONDS)
+	return results
 
 
 @frappe.whitelist()

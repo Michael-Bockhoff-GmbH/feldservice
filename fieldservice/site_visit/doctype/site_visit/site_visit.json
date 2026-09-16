@@ -30,8 +30,8 @@
   "section_break_remote",
   "is_remote",
   "start_address",
-  "customer_address_override",
   "ignore_customer_default_address",
+  "customer_address_override",
   "column_break_remote",
   "distance_km",
   "one_way_only",
@@ -206,19 +206,19 @@
    "label": "Start Address"
   },
   {
+   "default": "0",
    "depends_on": "eval:!doc.is_remote",
+   "description": "Do not fall back to the customer's default address on file for mileage - e.g. because it is known to be wrong for this visit. Check this to enter a Customer Site Address below; without one, mileage cannot be calculated.",
+   "fieldname": "ignore_customer_default_address",
+   "fieldtype": "Check",
+   "label": "Don't Use Customer's Default Address"
+  },
+  {
+   "depends_on": "eval:!doc.is_remote && doc.ignore_customer_default_address",
    "description": "Free-text address, no Address record required. Overrides the customer's default address on file for this visit only - e.g. a remote office or a different site of the customer.",
    "fieldname": "customer_address_override",
    "fieldtype": "Autocomplete",
    "label": "Customer Site Address"
-  },
-  {
-   "default": "0",
-   "depends_on": "eval:!doc.is_remote",
-   "description": "Do not fall back to the customer's default address on file for mileage - e.g. because it is known to be wrong for this visit. Without a Customer Site Address above, mileage cannot be calculated.",
-   "fieldname": "ignore_customer_default_address",
-   "fieldtype": "Check",
-   "label": "Don't Use Customer's Default Address"
   },
   {
    "fieldname": "column_break_remote",
