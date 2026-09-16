@@ -194,9 +194,6 @@ bench --site <deine-site> uninstall-app fieldservice
   selbst gehören nicht zu dieser App)
 - alle angelegten Projekte, alle geschriebenen Rechnungspositionen (auch in
   gebuchten Belegen), die Verknüpfungen zwischen Auftrag und Projekt
-- die beim Installieren aktivierte Adress-Autovervollständigung (Kern-
-  Doctype "Geolocation Settings", siehe "Kilometer" unten) – ein
-  site-weites Kernfeature, kein Bestandteil dieser App
 
 **Achtung:** Beim Löschen eines Custom Fields wird die Spalte aus der
 Tabelle entfernt. Die Zuordnungen *Aktivitätsart → Dienstleistungsartikel*
@@ -417,15 +414,19 @@ Ergebnis landet schreibgeschützt in `distance_km`.
 `customer_address_override` am Site Visit, `default_start_address` in Site
 Visit Settings — alle drei Feldtyp **Autocomplete** statt **Link
 (Address)**) — es ist **kein eigener Address-Datensatz in ERPNext nötig**.
-Während der Eingabe schlägt Frappes eigene Adress-Autovervollständigung
-(Kern-Doctype **Geolocation Settings**) passende Adressen vor; `install.py`
-(`_geolocation_autocomplete_enable`) aktiviert dafür beim Installieren
-automatisch **Nominatim** (OpenStreetMap) als Anbieter — kostenlos, offen,
-kein eigener API-Key nötig. Wählt der Techniker einen Vorschlag,
-formatiert `format_autocomplete_address()` (`public/js/site_visit.js`,
-analog in `site_visit_settings.js`) das zurückgelieferte JSON in eine
-lesbare, direkt geocodierbare Adresszeile um. Frei eingetippter Text ohne
-Vorschlagsauswahl bleibt unverändert nutzbar.
+Während der Eingabe schlägt `search_addresses()` (`site_visit/mileage.py`)
+passende Adressen von **Nominatim** (OpenStreetMap) vor — eine eigene,
+direkte Anbindung dieser App, kostenlos und ohne eigenen API-Key nötig.
+Bewusst **nicht** verwendet wird Frappes eingebaute Adress-Autovervoll-
+ständigung (Kern-Doctype **Geolocation Settings**): deren mitgelieferter
+Nominatim-Anbieter schickt keinen `User-Agent`-Header mit, wie es
+[Nominatims Nutzungsbedingungen](https://operations.osmfoundation.org/policies/nominatim/)
+verlangen, und wird deshalb mit `403 Forbidden` abgelehnt — ein Fehler in
+Frappe selbst, siehe Modul-Docstring in `mileage.py`. `search_addresses()`
+liefert bereits fertig lesbare Adresszeilen zurück, kein Nachformatieren
+im Formular nötig. Schlägt die Suche fehl (Netzwerk-/API-Fehler), bleibt
+die Vorschlagsliste einfach leer, statt das Formular zu unterbrechen —
+frei eingetippter Text ohne Vorschlagsauswahl bleibt jederzeit nutzbar.
 
 Startadresse (in dieser Reihenfolge, erste gefundene gewinnt):
 
@@ -442,7 +443,11 @@ Zieladresse (in dieser Reihenfolge):
 1. Feld **Customer Site Address** direkt am Site Visit — z. B. eine
    Außenstelle/ein Remote Office des Kunden, abweichend von dessen
    hinterlegter Standardadresse
-2. Standardadresse des am Site Visit gewählten **Customer**
+2. Standardadresse des am Site Visit gewählten **Customer** — außer der
+   Haken **"Don't Use Customer's Default Address"** ist gesetzt (z. B.
+   weil die hinterlegte Adresse für diesen Einsatz bekanntermaßen falsch
+   ist); dann zählt ausschließlich Schritt 1, und ohne **Customer Site
+   Address** lässt sich keine Kilometerzahl berechnen
 
 Ohne konfigurierten API-Key oder ohne auffindbare Start-/Zieladresse
 schlägt die Berechnung mit einer verständlichen Fehlermeldung fehl — die

@@ -9,10 +9,16 @@ Start- und Zieladresse sind reiner Freitext (Felder start_address/
 customer_address_override auf Site Visit, default_start_address auf Site
 Visit Settings - alle drei "Autocomplete" statt "Link (Address)"), keine
 ERPNext-Address-Datensaetze noetig. Die Formularfelder bieten trotzdem eine
-Sofortsuche waehrend der Eingabe, ueber Frappes eigene Adress-
-Autovervollstaendigung (Kern-Doctype "Geolocation Settings", siehe
-install.py -> _geolocation_autocomplete_enable) - standardmaessig ueber
-Nominatim (OpenStreetMap, kostenlos/offen, kein eigener API-Key noetig).
+Sofortsuche waehrend der Eingabe, ueber search_addresses() unten - eine
+eigene, direkte Anbindung an Nominatim (OpenStreetMap, kostenlos/offen,
+kein eigener API-Key noetig), NICHT Frappes eingebaute Adress-
+Autovervollstaendigung (Kern-Doctype "Geolocation Settings"): deren
+Nomatim-Anbieter schickt keinen User-Agent-Header mit, was Nominatims
+Nutzungsbedingungen (https://operations.osmfoundation.org/policies/nominatim/)
+verlangen - ohne Kennung lehnt der Dienst jede Anfrage mit 403 Forbidden ab
+(am 17.09.2026 reproduziert, siehe auch Traceback vom Nutzer). Ein Fehler
+im Frappe-Kern, den diese App nicht patcht - stattdessen die eigene
+Anbindung mit korrektem User-Agent.
 
 Bewusst kein Caching von Koordinaten hier - Adressen aendern sich selten
 genug, dass der zusaetzliche Code (inkl. Invalidierung) den API-Aufruf
@@ -27,6 +33,7 @@ from frappe import _
 
 GEOCODE_URL = "https://api.openrouteservice.org/geocode/search"
 DIRECTIONS_URL = "https://api.openrouteservice.org/v2/directions/driving-car"
+NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
 REQUEST_TIMEOUT = 10
 
 
@@ -52,9 +59,14 @@ def get_start_text(doc):
 def get_destination_text(doc):
 	"""Zieladresse (Freitext): Ueberschreibung am Site Visit selbst (z. B.
 	eine Aussenstelle/Remote Office des Kunden), sonst die Standardadresse
-	des Kunden."""
+	des Kunden - ausser "Don't Use Customer's Default Address" ist
+	angehakt, dann zaehlt ausschliesslich die Ueberschreibung (z. B. weil
+	die hinterlegte Kundenadresse fuer diesen Einsatz bekanntermassen nicht
+	stimmt) und es gibt ohne sie keine Zieladresse."""
 	if doc.customer_address_override:
 		return doc.customer_address_override
+	if doc.ignore_customer_default_address:
+		return None
 
 	from frappe.contacts.doctype.address.address import get_default_address
 
@@ -149,6 +161,41 @@ def requests_post(url, headers, json):
 	except requests.RequestException as e:
 		frappe.throw(_("OpenRouteService request failed: {0}").format(e), title=_("Mileage"))
 	return r.json()
+
+
+@frappe.whitelist()
+def search_addresses(txt):
+	"""Adress-Sofortsuche fuer start_address/customer_address_override
+	(site_visit.js) und default_start_address (site_visit_settings.js) -
+	eigene, direkte Nominatim-Anbindung statt Frappes eingebauter
+	Adress-Autovervollstaendigung, siehe Modul-Docstring oben fuer den
+	Hintergrund (403 Forbidden ohne User-Agent-Header).
+
+	Gibt fertige, bereits lesbare Adresszeilen zurueck (label == value) -
+	kein Nachformatieren im Formular noetig wie bei Frappes eigener
+	Autovervollstaendigung, die stattdessen ein JSON-Objekt mit
+	Adressbestandteilen liefert. Schlaegt bei einem Netzwerk-/API-Fehler
+	still zu einer leeren Vorschlagsliste fehl, statt das Formular mit
+	einem Fehlerdialog zu unterbrechen - es ist nur eine Sucheingabe-
+	Komfortfunktion, freier Text bleibt jederzeit moeglich."""
+	if not txt:
+		return []
+
+	import requests
+
+	headers = {"User-Agent": f"fieldservice-erpnext ({frappe.utils.get_url()})"}
+	try:
+		r = requests.get(
+			NOMINATIM_SEARCH_URL,
+			params={"q": txt, "format": "json", "limit": 5, "addressdetails": 0},
+			headers=headers,
+			timeout=REQUEST_TIMEOUT,
+		)
+		r.raise_for_status()
+	except requests.RequestException:
+		return []
+
+	return [{"label": result["display_name"], "value": result["display_name"]} for result in r.json()]
 
 
 @frappe.whitelist()

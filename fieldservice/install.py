@@ -111,7 +111,6 @@ def after_install():
 	_pdf_on_submit_enable()
 	_home_workspace_enable()
 	_po_no_required_enable()
-	_geolocation_autocomplete_enable()
 
 
 def before_uninstall():
@@ -282,33 +281,3 @@ def _po_no_required_disable():
 
 	frappe.delete_doc("Property Setter", name, ignore_missing=True)
 	click.secho("Zeit & Projekt: Customer Reference (po_no) ist wieder optional.", fg="yellow")
-
-
-def _geolocation_autocomplete_enable():
-	"""Aktiviert Frappes eingebaute Adress-Autovervollstaendigung (Kern-
-	Doctype "Geolocation Settings") mit Nominatim (OpenStreetMap, kostenlos/
-	offen, kein eigener API-Key noetig) als Anbieter - fuer die Freitext-
-	Adressfelder in Site Visit (start_address, customer_address_override)
-	und Site Visit Settings (default_start_address), damit dafuer keine
-	eigenen Address-Datensaetze in ERPNext angelegt werden muessen.
-
-	Greift nur, wenn noch keine Autovervollstaendigung eingerichtet ist -
-	eine bereits vom Nutzer gewaehlte Konfiguration (z. B. Geoapify mit
-	eigenem Key) bleibt unangetastet. Es gibt bewusst kein Gegenstueck in
-	before_uninstall: "Geolocation Settings" ist ein Kern-Doctype, den auch
-	andere Apps/die Adressverwaltung selbst nutzen - eine site-weite
-	Funktion beim Deinstallieren dieser App wieder abzuschalten waere
-	ueberraschend, falls sie sich inzwischen andernorts als nuetzlich
-	erwiesen hat."""
-	settings = frappe.get_single("Geolocation Settings")
-	if settings.enable_address_autocompletion:
-		return
-
-	settings.provider = "Nomatim"
-	settings.base_url = "https://nominatim.openstreetmap.org"
-	settings.enable_address_autocompletion = 1
-	settings.save(ignore_permissions=True)
-	click.secho(
-		"IT Support mit Außendienst: Adress-Autovervollstaendigung ueber Nominatim (OpenStreetMap) aktiviert.",
-		fg="green",
-	)

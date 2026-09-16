@@ -29,7 +29,7 @@
    "label": "OpenRouteService API Key"
   },
   {
-   "description": "Free-text address, no Address record required - search-as-you-type via Frappe's own address autocomplete (Geolocation Settings). Used as the mileage start point when a Site Visit does not set its own Start Address. Leave empty to use the Company's own default address instead.",
+   "description": "Free-text address, no Address record required - search-as-you-type via OpenStreetMap. Used as the mileage start point when a Site Visit does not set its own Start Address. Leave empty to use the Company's own default address instead.",
    "fieldname": "default_start_address",
    "fieldtype": "Autocomplete",
    "label": "Default Start Address"

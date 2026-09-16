@@ -30,15 +30,17 @@ frappe.ui.form.on('Site Visit', {
 		}));
 
 		// Start Address/Customer Site Address: freier Text statt eines
-		// Address-Datensatzes, aber mit Sofortsuche waehrend der Eingabe
-		// ueber Frappes eigene Adress-Autovervollstaendigung (Kern-Doctype
-		// "Geolocation Settings" - siehe install.py). ignore_validation ist
-		// noetig, da ControlAutocomplete sonst jeden Wert verwirft, der
-		// nicht exakt einem der zuletzt geladenen Vorschlaege entspricht -
-		// z. B. den von format_autocomplete_address() unten umformatierten
-		// Text, oder frei eingetippte Adressen ohne Vorschlagsauswahl.
+		// Address-Datensatzes, aber mit Sofortsuche waehrend der Eingabe -
+		// ueber die eigene search_addresses() in mileage.py (direkte
+		// Nominatim-Anbindung mit korrektem User-Agent-Header), NICHT
+		// Frappes eingebaute Adress-Autovervollstaendigung: die schlaegt
+		// bei Nominatim ohne User-Agent mit 403 Forbidden fehl (siehe
+		// mileage.py fuer den Hintergrund). ignore_validation ist noetig,
+		// da ControlAutocomplete sonst jeden Wert verwirft, der nicht
+		// exakt einem der zuletzt geladenen Vorschlaege entspricht - z. B.
+		// frei eingetippte Adressen ohne Vorschlagsauswahl.
 		['start_address', 'customer_address_override'].forEach((fieldname) => {
-			frm.set_query(fieldname, () => 'frappe.integrations.doctype.geolocation_settings.geolocation_settings.autocomplete');
+			frm.set_query(fieldname, () => 'fieldservice.site_visit.mileage.search_addresses');
 			const field = frm.get_field(fieldname);
 			if (field) field.df.ignore_validation = 1;
 		});
@@ -74,14 +76,6 @@ frappe.ui.form.on('Site Visit', {
 		fill_from_project(frm);
 	},
 
-	start_address(frm) {
-		format_autocomplete_address(frm, 'start_address');
-	},
-
-	customer_address_override(frm) {
-		format_autocomplete_address(frm, 'customer_address_override');
-	},
-
 	sales_order(frm) {
 		// Kunde (und, falls noch leer, Projekt) aus dem gewaehlten Auftrag
 		// uebernehmen - derselbe Grund wie bei project(): der Techniker soll
@@ -115,26 +109,6 @@ frappe.ui.form.on('Site Visit', {
 		update_remote_ui(frm);
 	},
 });
-
-// Frappes Adress-Autovervollstaendigung liefert bei Auswahl eines
-// Vorschlags keinen lesbaren Text, sondern ein JSON-Objekt mit den
-// Adressbestandteilen (siehe frappe/integrations/doctype/geolocation_settings/
-// providers/*.py - dasselbe Format, das auch beim Anlegen eines neuen
-// Address-Datensatzes verwendet wird). Baut daraus eine lesbare, fuer die
-// Kilometerberechnung direkt geeignete Adresszeile. Frei eingetippter Text
-// ohne Vorschlagsauswahl ist kein gueltiges JSON und bleibt unveraendert.
-function format_autocomplete_address(frm, fieldname) {
-	const value = frm.doc[fieldname];
-	if (!value) return;
-	let parsed;
-	try {
-		parsed = JSON.parse(value);
-	} catch (e) {
-		return;
-	}
-	const parts = [parsed.address_line1, parsed.pincode, parsed.city, parsed.state, parsed.country].filter(Boolean);
-	if (parts.length) frm.set_value(fieldname, parts.join(', '));
-}
 
 // Fernarbeit: Unterschrift ausblenden ODER Link zum Unterzeichnen an den
 // Kunden schicken - je nach Site Visit Settings -> Remote Visit Mode. Die

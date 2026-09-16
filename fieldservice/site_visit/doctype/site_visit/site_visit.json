@@ -31,6 +31,7 @@
   "is_remote",
   "start_address",
   "customer_address_override",
+  "ignore_customer_default_address",
   "column_break_remote",
   "distance_km",
   "one_way_only",
@@ -199,7 +200,7 @@
   },
   {
    "depends_on": "eval:!doc.is_remote",
-   "description": "Free-text address, no Address record required - search-as-you-type via Frappe's own address autocomplete (Geolocation Settings). Overrides the default mileage start point (Site Visit Settings, or the Company's default address) for this visit only.",
+   "description": "Free-text address, no Address record required - search-as-you-type via OpenStreetMap. Overrides the default mileage start point (Site Visit Settings, or the Company's default address) for this visit only.",
    "fieldname": "start_address",
    "fieldtype": "Autocomplete",
    "label": "Start Address"
@@ -210,6 +211,14 @@
    "fieldname": "customer_address_override",
    "fieldtype": "Autocomplete",
    "label": "Customer Site Address"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:!doc.is_remote",
+   "description": "Do not fall back to the customer's default address on file for mileage - e.g. because it is known to be wrong for this visit. Without a Customer Site Address above, mileage cannot be calculated.",
+   "fieldname": "ignore_customer_default_address",
+   "fieldtype": "Check",
+   "label": "Don't Use Customer's Default Address"
   },
   {
    "fieldname": "column_break_remote",
