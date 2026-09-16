@@ -71,17 +71,24 @@ fieldservice/
     │   │   ├── site_visit/          # Haupt-Doctype (submittable)
     │   │   ├── site_visit_photo/    # Kindtabelle für Fotos
     │   │   ├── site_visit_item/     # Kindtabelle für Zusatzartikel
-    │   │   └── site_visit_break/    # Kindtabelle für Pausen (Timer)
+    │   │   ├── site_visit_break/    # Kindtabelle für Pausen (Timer)
+    │   │   └── site_visit_settings/ # Single-Doctype, App-Einstellungen
     │   ├── print_format/
     │   │   └── site_visit_report/   # PDF-Vorlage
     │   ├── workspace/
     │   │   └── site_visits/         # Desk-Seite
-    │   ├── site_visit.py            # before_submit/on_cancel/create_sales_order/...
+    │   ├── www/
+    │   │   ├── site-visit-sign.py   # Kontext/Token-Pruefung fuer die Fernunterschrift
+    │   │   └── site-visit-sign.html # Oeffentliche Unterschriften-Seite (kein Login)
+    │   ├── site_visit.py            # before_submit/on_cancel/create_sales_order/item_query_hardware/...
+    │   ├── mileage.py               # Kilometerberechnung ueber OpenRouteService
+    │   ├── remote_signature.py      # Signaturlink senden + oeffentliches Speichern der Unterschrift
     │   └── project_dashboard.py     # ergänzt "Site Visit" in den Projekt-Verknüpfungen
     └── zeit_projekt/           # Modul "Zeit Projekt"
         ├── doctype/
         │   └── zeit_projekt_einstellungen/
-        └── sales_order.py            # Projektanlage in before_submit (serverseitig)
+        ├── sales_order.py            # Projektanlage in before_submit (serverseitig)
+        └── timesheet_import.py       # Zeiten fuer den Rechnungsimport (inkl. Auftrag/Filter)
 ```
 
 `install.py` legt außer den drei Custom Fields von "Zeit Projekt" **keine**
@@ -221,6 +228,23 @@ darunter.
 **Liefertermin der Position:** Beginn (Standard) oder Ende der Zeitbuchung.
 Relevant nur bei Buchungen über Mitternacht.
 
+**Auftrag (optional, nur Filter):** schränkt die im Dialog geladenen Zeiten
+zusätzlich auf einen bestimmten Auftrag des Projekts ein (z. B. um nur die
+Zeiten eines bestimmten Auftrags zu sehen, wenn ein Projekt mehrere hat).
+Leer gelassen kommen wie bisher **alle** abrechenbaren Zeiten des Projekts,
+unabhängig vom Auftrag — der Filter ändert also nichts an der Abrechnung
+selbst, nur an der Vorauswahl im Dialog. Technisch möglich, weil Site Visit
+jede Zeitblatt-Zeile mit dem eigenen Auftrag verknüpft
+(`custom_sales_order`, Custom Field auf "Timesheet Detail" — siehe
+`install.py`); Zeiten ohne Site Visit (z. B. manuell erfasste
+Timesheet-Zeilen) haben diesen Wert nicht gesetzt und tauchen bei einem
+gesetzten Auftrags-Filter entsprechend nicht auf.
+
+Aus demselben Feld übernimmt jede importierte Rechnungsposition den Auftrag
+auch gleich in ihr eigenes, von ERPNext bereits mitgeliefertes Feld
+`sales_order` (Sales Invoice Item) — die bislang fehlende Verknüpfung
+zwischen Rechnung und Auftrag.
+
 ## Nach der Installation
 
 Die App deaktiviert vorhandene Client Scripts mit den Namen
@@ -250,11 +274,22 @@ bereits eingetragenen Zusatzartikel (siehe unten) als Startpositionen; dafür
 muss mindestens eine Zeile in "Additional Items" stehen, da ein Auftrag ohne
 Position nicht anlegbar ist.
 
+Hat das gewählte Projekt **mehrere** offene Aufträge, wählt `fill_from_project`
+in `site_visit.js` nicht mehr automatisch (das ging bisher nur bei genau
+einem Treffer) und zeigt stattdessen einen Auswahldialog mit allen
+passenden Aufträgen. `sales_order` bleibt dabei absichtlich **nicht** auf
+Feldebene Pflicht (siehe "Timer" unten, wegen des Timer-Entwurfs) – die
+Pflicht wird weiterhin erst beim Buchen selbst geprüft (`before_submit`).
+
 **Zusätzliche Artikel** (`extra_items`): vor Ort zusätzlich benötigtes
-Material (z. B. ein USB-auf-LAN-Adapter), das noch nicht im Auftrag steht.
-Beim Buchen des Site Visit werden neue (noch nicht übernommene) Zeilen
-automatisch in die Positionen des verknüpften Auftrags aufgenommen – auch
-wenn der Auftrag bereits gebucht ist (über
+**Hardware**-Material (z. B. ein USB-auf-LAN-Adapter), das noch nicht im
+Auftrag steht – keine Dienstleistungsartikel. Das Artikel-Feld ist über
+`item_query_hardware` (`site_visit.py`) auf die in **Site Visit Settings**
+hinterlegte **Hardware Item Group** (inkl. Untergruppen) eingeschränkt;
+ohne hinterlegte Gruppe gilt keine Einschränkung. Beim Buchen des Site
+Visit werden neue (noch nicht übernommene) Zeilen automatisch in die
+Positionen des verknüpften Auftrags aufgenommen – auch wenn der Auftrag
+bereits gebucht ist (über
 `erpnext.controllers.accounts_controller.update_child_qty_rate`, dieselbe
 Funktion, die auch der "Update Items"-Dialog im Auftrag selbst verwendet;
 bestehende Positionen, Steuern und Summen werden dabei korrekt neu
@@ -308,6 +343,73 @@ statt ein vorheriges "Resume Timer" zu erzwingen (falls der Einsatz z. B.
 mitten in der Pause endgültig endet). Vor dem Buchen muss trotzdem jede
 Pause geschlossen sein — sonst weist `before_submit` mit einer klaren
 Fehlermeldung darauf hin.
+
+## Site Visit Settings
+
+Neue, eigene Single-Doctype (Suchleiste oder `/app/site-visit-settings`) für
+die App-weiten Einstellungen von Site Visit:
+
+| Bereich | Feld | Bedeutung |
+|---|---|---|
+| Kilometer | OpenRouteService API Key | Kostenloser Key von [openrouteservice.org](https://openrouteservice.org) — ohne Key funktioniert "Kilometer berechnen" nicht. |
+| Kilometer | Default Start Address | Startpunkt, falls der Site Visit selbst keine eigene Startadresse hat. Leer = Standardadresse der Firma. |
+| Zusätzliche Artikel | Hardware Item Group | Nur Artikel aus dieser Gruppe (inkl. Untergruppen) sind als Zusatzartikel wählbar. Leer = keine Einschränkung. |
+| Fernarbeit | Remote Visit Mode | "Hide Signature" (Unterschriftsfelder ausblenden) oder "Send Signing Link to Customer" (Link per E-Mail). |
+| Fernarbeit | Signature Required | Ohne Unterschrift nicht buchbar — außer bei Fernarbeit im Modus "Hide Signature". |
+
+## Kilometer
+
+"Calculate Mileage" im Formular (sichtbar, solange der Site Visit gespeichert
+und nicht gebucht ist und ein Kunde gewählt ist) berechnet die einfache
+Fahrstrecke von der Startadresse zur Standardadresse des Kunden über die
+[OpenRouteService](https://openrouteservice.org)-API: zuerst Geocoding
+(Adresstext → Koordinaten) für beide Adressen, dann eine Routenabfrage
+zwischen den Koordinaten (`site_visit/mileage.py`). Das Ergebnis landet
+schreibgeschützt in `distance_km`.
+
+Startadresse (in dieser Reihenfolge, erste gefundene gewinnt):
+
+1. Feld **Start Address** direkt am Site Visit (Überschreibung für diesen
+   einen Einsatz, z. B. wenn der Techniker von einem anderen Einsatz aus
+   direkt weiterfährt)
+2. **Default Start Address** in Site Visit Settings
+3. Standardadresse der am Site Visit hinterlegten **Company**
+   (`frappe.contacts.doctype.address.address.get_default_address`)
+
+Ohne konfigurierten API-Key oder ohne auffindbare Start-/Kundenadresse
+schlägt die Berechnung mit einer verständlichen Fehlermeldung fehl — die
+Kilometerberechnung ist eine Komfortfunktion, kein Teil der
+`before_submit`-Pflichtprüfung, ein Site Visit lässt sich auch ohne
+Kilometer buchen.
+
+## Fernarbeit
+
+Ein Site Visit lässt sich als **Remote Visit** markieren (Haken `is_remote`)
+— für Einsätze ohne physische Anwesenheit vor Ort. Was das für die
+Unterschrift bedeutet, steuert **Site Visit Settings → Remote Visit Mode**:
+
+- **Hide Signature**: die Felder "Customer Signature"/"Signee Name" werden
+  im Formular ausgeblendet (`update_remote_ui` in `site_visit.js`) — für
+  diesen Einsatz ist gar keine Unterschrift vorgesehen.
+- **Send Signing Link to Customer** (Standard): Knopf **"Send Signing
+  Link"** im Formular verschickt eine E-Mail mit einem öffentlichen,
+  nicht angemeldeten Link an die im Kundendatensatz hinterlegte
+  E-Mail-Adresse (`site_visit/remote_signature.py`). Unter dem Link kann
+  der Kunde ohne eigenen Login unterschreiben (`www/site-visit-sign.html`,
+  Signatur per Finger/Maus auf einem HTML-Canvas) — das speichert
+  `customer_signature`/`signee_name` genau wie eine Unterschrift direkt im
+  Formular, **bucht den Site Visit aber nicht**. Das Buchen bleibt weiterhin
+  Sache des Technikers.
+
+Der Link ist über ein zufälliges, langes Token abgesichert
+(`remote_signature_token`, im Formular versteckt) und **30 Tage** ab dem
+Versand gültig (`remote_signature_sent_at`); danach oder nach einer bereits
+gespeicherten Unterschrift lehnt der Link weitere Versuche ab.
+
+**Site Visit Settings → Signature Required**: ist dieser Haken gesetzt, blockt
+`before_submit` das Buchen ohne gesetzte `customer_signature` — außer bei
+einem Remote Visit im Modus "Hide Signature", wo gar keine Unterschrift
+vorgesehen ist (`_validate_signature` in `site_visit/site_visit.py`).
 
 ## Automatische PDF-Erzeugung beim Buchen
 
@@ -385,3 +487,10 @@ User/Accounts Manager/Projects User (nur lesen).
 - Für Property Setter (geänderte Feldeigenschaften am Standard) gilt
   dasselbe: entweder im `after_install` erzeugen oder als Fixture
   exportieren und dabei das passende Modul setzen.
+- **Offen:** automatisches Anpassen der Dienstleistungs-Positionsmenge im
+  verknüpften Auftrag anhand der tatsächlich gearbeiteten Zeit eines Site
+  Visit (zusätzlich zum bereits vorhandenen Übernehmen der `extra_items`).
+  Noch zu klären: ob die Auftragsmenge dabei je Einsatz **addiert** oder auf
+  die kumulierte Ist-Zeit **gesetzt** wird, und wie das mit dem separaten
+  Rechnungsimport (Timesheet → Rechnungsposition) zusammenspielt, ohne
+  Stunden doppelt zu zählen.

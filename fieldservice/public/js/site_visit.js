@@ -20,6 +20,19 @@ frappe.ui.form.on('Site Visit', {
 			return { filters };
 		});
 
+		// Nur Artikel aus der in Site Visit Settings hinterlegten
+		// Hardware-Artikelgruppe (inkl. Untergruppen) duerfen als
+		// Zusatzartikel hinzugefuegt werden - siehe item_query_hardware in
+		// site_visit.py (leere Einstellung = keine Einschraenkung).
+		frm.set_query('item_code', 'extra_items', () => ({
+			query: 'fieldservice.site_visit.site_visit.item_query_hardware',
+		}));
+
+		frappe.db.get_doc('Site Visit Settings').then((settings) => {
+			frm.__site_visit_settings = settings;
+			frm.trigger('refresh');
+		});
+
 		if (!frm.is_new()) return;
 		if (!frm.doc.employee) {
 			frappe.db.get_value('Employee', { user_id: frappe.session.user, status: 'Active' }, 'name')
@@ -61,6 +74,7 @@ frappe.ui.form.on('Site Visit', {
 	refresh(frm) {
 		frm.dashboard.clear_headline();
 		update_timer_toolbar(frm);
+		update_remote_ui(frm);
 		if (frm.doc.docstatus === 0 && !frm.doc.customer_signature) {
 			frm.dashboard.set_headline_alert(__('No customer signature captured yet.'), 'orange');
 		}
@@ -72,8 +86,67 @@ frappe.ui.form.on('Site Visit', {
 		if (frm.doc.docstatus === 0 && !frm.doc.sales_order) {
 			frm.add_custom_button(__('New Sales Order'), () => show_create_sales_order_dialog(frm));
 		}
+		if (frm.doc.docstatus === 0 && !frm.is_new() && frm.doc.customer) {
+			frm.add_custom_button(__('Calculate Mileage'), () => calculate_mileage(frm));
+		}
+	},
+
+	is_remote(frm) {
+		update_remote_ui(frm);
 	},
 });
+
+// Fernarbeit: Unterschrift ausblenden ODER Link zum Unterzeichnen an den
+// Kunden schicken - je nach Site Visit Settings -> Remote Visit Mode. Die
+// eigentliche Pflicht-Pruefung (Site Visit Settings -> Signature Required)
+// laeuft serverseitig in _validate_signature (site_visit.py) - hier nur
+// Anzeige/Komfort.
+function update_remote_ui(frm) {
+	const settings = frm.__site_visit_settings || {};
+	const hide_signature = frm.doc.is_remote && settings.remote_mode === 'Hide Signature';
+	frm.toggle_display(['customer_signature', 'signee_name'], !hide_signature);
+
+	if (frm.doc.docstatus !== 0 || frm.is_new()) return;
+	if (!frm.doc.is_remote || settings.remote_mode !== 'Send Signing Link to Customer') return;
+	if (frm.doc.customer_signature) return;
+	if (!frm.doc.customer) return;
+
+	frm.add_custom_button(__('Send Signing Link'), () => send_signing_link(frm));
+	if (frm.doc.remote_signature_sent_at) {
+		frm.dashboard.set_headline_alert(
+			__('Signing link sent on {0}, not yet signed.', [frappe.datetime.str_to_user(frm.doc.remote_signature_sent_at)]),
+			'blue'
+		);
+	}
+}
+
+function send_signing_link(frm) {
+	frappe.call({
+		method: 'fieldservice.site_visit.remote_signature.send_signing_link',
+		args: { site_visit: frm.doc.name },
+		freeze: true,
+		freeze_message: __('Sending...'),
+		callback(r) {
+			if (!r.message) return;
+			frappe.show_alert({ message: __('Signing link sent.'), indicator: 'green' }, 5);
+			frm.reload_doc();
+		},
+	});
+}
+
+function calculate_mileage(frm) {
+	frappe.call({
+		method: 'fieldservice.site_visit.mileage.calculate_distance',
+		args: { site_visit: frm.doc.name },
+		freeze: true,
+		freeze_message: __('Calculating...'),
+		callback(r) {
+			if (r.message === undefined) return;
+			frappe.show_alert({ message: __('Distance: {0} km', [r.message]), indicator: 'green' }, 5);
+			frm.reload_doc();
+		},
+	});
+}
 
 // Timer fuer die Einsatzzeit - reine Komfortfunktion obendrauf auf from_time/
 // to_time, die ganz normale, jederzeit von Hand editierbare Felder bleiben
@@ -312,15 +385,43 @@ function fill_from_project(frm) {
 		});
 	}
 	// Genau ein passender Auftrag zum gewaehlten Projekt? Dann gleich
-	// uebernehmen. Bei mehreren zeigt der Filter aus onload() nur noch die
-	// passenden im Dropdown - der Techniker waehlt dann selbst.
+	// uebernehmen. Bei mehreren eine Auswahl anzeigen, statt den Techniker
+	// selbst im (durch onload() bereits gefilterten) Dropdown suchen zu
+	// lassen - sales_order bleibt trotzdem Pflicht erst beim Buchen (siehe
+	// before_submit in site_visit.py), damit ein Entwurf mit nur laufendem
+	// Timer weiterhin speicherbar ist.
 	if (!frm.doc.sales_order) {
 		frappe.db.get_list('Sales Order', {
 			filters: { project: frm.doc.project, docstatus: ['!=', 2] },
 			fields: ['name'],
-			limit: 2,
+			limit: 20,
 		}).then((rows) => {
-			if (rows.length === 1) frm.set_value('sales_order', rows[0].name);
+			if (rows.length === 1) {
+				frm.set_value('sales_order', rows[0].name);
+			} else if (rows.length > 1) {
+				show_select_sales_order_dialog(frm, rows);
+			}
 		});
 	}
+}
+
+function show_select_sales_order_dialog(frm, orders) {
+	const dialog = new frappe.ui.Dialog({
+		title: __('Select Sales Order'),
+		fields: [
+			{
+				fieldname: 'sales_order',
+				fieldtype: 'Select',
+				label: __('This Project has multiple Sales Orders - please pick one'),
+				options: orders.map((o) => o.name),
+				reqd: 1,
+			},
+		],
+		primary_action_label: __('Select'),
+		primary_action(values) {
+			dialog.hide();
+			frm.set_value('sales_order', values.sales_order);
+		},
+	});
+	dialog.show();
 }

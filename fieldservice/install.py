@@ -40,6 +40,23 @@ CUSTOM_FIELDS = {
 			"module": ZEIT_PROJEKT_MODULE,
 		},
 	],
+	# Traegt den Auftrag mit an die einzelne Zeitblatt-Zeile, statt nur ans
+	# Projekt (Kern-Feld "project") - noetig, damit sich Zeiten beim
+	# Rechnungsimport nach Auftrag filtern lassen und die Rechnungsposition
+	# den Auftrag verknuepfen kann, auch wenn ein Projekt mehrere Auftraege
+	# hat. Wird von site_visit/site_visit.py beim Anlegen des Timesheets
+	# gesetzt (siehe _get_work_segments/before_submit dort) und von
+	# zeit_projekt/timesheet_import.py gelesen.
+	"Timesheet Detail": [
+		{
+			"fieldname": "custom_sales_order",
+			"label": "Sales Order",
+			"fieldtype": "Link",
+			"options": "Sales Order",
+			"insert_after": "project",
+			"module": ZEIT_PROJEKT_MODULE,
+		},
+	],
 }
 
 # Client Scripts aus der manuellen Einrichtung. Werden bei der Installation

@@ -1,0 +1,106 @@
+{
+ "actions": [],
+ "creation": "2026-09-17 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "mileage_section",
+  "ors_api_key",
+  "default_start_address",
+  "column_break_mileage",
+  "hardware_section",
+  "hardware_item_group",
+  "remote_section",
+  "remote_mode",
+  "column_break_remote",
+  "signature_required"
+ ],
+ "fields": [
+  {
+   "fieldname": "mileage_section",
+   "fieldtype": "Section Break",
+   "label": "Mileage"
+  },
+  {
+   "description": "Free API key from openrouteservice.org, used to calculate the driving distance for a Site Visit.",
+   "fieldname": "ors_api_key",
+   "fieldtype": "Data",
+   "label": "OpenRouteService API Key"
+  },
+  {
+   "description": "Used as the mileage start point when a Site Visit does not set its own Start Address. Leave empty to use the Company's own default address instead.",
+   "fieldname": "default_start_address",
+   "fieldtype": "Link",
+   "label": "Default Start Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "column_break_mileage",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hardware_section",
+   "fieldtype": "Section Break",
+   "label": "Additional Items"
+  },
+  {
+   "description": "Only items from this Item Group (and its sub-groups) may be added as an Additional Item on a Site Visit. Leave empty for no restriction.",
+   "fieldname": "hardware_item_group",
+   "fieldtype": "Link",
+   "label": "Hardware Item Group",
+   "options": "Item Group"
+  },
+  {
+   "fieldname": "remote_section",
+   "fieldtype": "Section Break",
+   "label": "Remote Visits"
+  },
+  {
+   "default": "Send Signing Link to Customer",
+   "description": "What happens for a Site Visit marked as remote: either the signature fields are hidden, or the customer gets an emailed link to sign it themselves.",
+   "fieldname": "remote_mode",
+   "fieldtype": "Select",
+   "label": "Remote Visit Mode",
+   "options": "Hide Signature\nSend Signing Link to Customer"
+  },
+  {
+   "fieldname": "column_break_remote",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "If set, a Site Visit cannot be submitted without a signature (in-person or, for remote visits in \"Send Signing Link\" mode, via the emailed link) unless it is a remote visit in \"Hide Signature\" mode.",
+   "fieldname": "signature_required",
+   "fieldtype": "Check",
+   "label": "Signature Required"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-17 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Site Visit",
+ "name": "Site Visit Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Projects Manager"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

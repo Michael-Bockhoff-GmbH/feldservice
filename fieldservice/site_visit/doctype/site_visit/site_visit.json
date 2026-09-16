@@ -21,6 +21,11 @@
   "from_time",
   "to_time",
   "breaks",
+  "section_break_remote",
+  "is_remote",
+  "start_address",
+  "column_break_remote",
+  "distance_km",
   "section_break_description",
   "description",
   "section_break_items",
@@ -30,6 +35,8 @@
   "section_break_unterschrift",
   "customer_signature",
   "signee_name",
+  "remote_signature_token",
+  "remote_signature_sent_at",
   "section_break_verknuepfung",
   "timesheet",
   "amended_from"
@@ -134,6 +141,36 @@
    "options": "Site Visit Break"
   },
   {
+   "fieldname": "section_break_remote",
+   "fieldtype": "Section Break",
+   "label": "Remote & Mileage"
+  },
+  {
+   "default": "0",
+   "description": "No physical visit took place - controls what happens with the signature (see Site Visit Settings).",
+   "fieldname": "is_remote",
+   "fieldtype": "Check",
+   "label": "Remote Visit"
+  },
+  {
+   "description": "Overrides the default mileage start point (Site Visit Settings, or the Company's default address) for this visit only.",
+   "fieldname": "start_address",
+   "fieldtype": "Link",
+   "label": "Start Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "column_break_remote",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "One-way driving distance to the customer's address, via the \"Calculate Mileage\" button (requires an OpenRouteService API key in Site Visit Settings).",
+   "fieldname": "distance_km",
+   "fieldtype": "Float",
+   "label": "Distance (km)",
+   "read_only": 1
+  },
+  {
    "fieldname": "section_break_description",
    "fieldtype": "Section Break",
    "label": "Work Performed"
@@ -181,6 +218,24 @@
    "fieldname": "signee_name",
    "fieldtype": "Data",
    "label": "Signee Name"
+  },
+  {
+   "fieldname": "remote_signature_token",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Remote Signature Token",
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "description": "Set when \"Send Signing Link\" was last used - the link stays valid for 30 days from this date.",
+   "fieldname": "remote_signature_sent_at",
+   "fieldtype": "Datetime",
+   "label": "Signing Link Sent At",
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
   },
   {
    "fieldname": "section_break_verknuepfung",

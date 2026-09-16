@@ -54,6 +54,8 @@ def before_submit(doc, method=None):
 	if get_datetime(doc.to_time) <= get_datetime(doc.from_time):
 		frappe.throw(_("End time must be after the start time."))
 
+	_validate_signature(doc)
+
 	segments = _get_work_segments(doc)
 
 	ts = frappe.get_doc(
@@ -69,6 +71,7 @@ def before_submit(doc, method=None):
 					"project": doc.project or None,
 					"description": doc.description or doc.name,
 					"is_billable": 1,
+					"custom_sales_order": doc.sales_order,
 				}
 				for segment_from, segment_to in segments
 			],
@@ -95,6 +98,25 @@ def before_submit(doc, method=None):
 	)
 
 	_sync_extra_items_to_sales_order(doc)
+
+
+def _validate_signature(doc):
+	"""Site Visit Settings -> "Signature Required": ein Fernbesuch im Modus
+	"Unterschrift ausblenden" ist davon ausgenommen, da dort gar keine
+	Unterschrift vorgesehen ist (siehe Site Visit Settings -> Remote Visit
+	Mode). Alle anderen Faelle (vor Ort oder Fernbesuch mit Signierlink)
+	brauchen bei aktivierter Einstellung eine gesetzte customer_signature -
+	ob die per Finger im Formular oder per Fernlink (remote_signature.
+	submit_remote_signature) zustande kam, spielt dafuer keine Rolle."""
+	settings = frappe.get_cached_doc("Site Visit Settings")
+	if not settings.signature_required:
+		return
+
+	if doc.is_remote and settings.remote_mode == "Hide Signature":
+		return
+
+	if not doc.customer_signature:
+		frappe.throw(_("Please capture the customer's signature before submitting."))
 
 
 def _get_work_segments(doc):
@@ -173,6 +195,28 @@ def _sync_extra_items_to_sales_order(doc):
 
 	for row in pending:
 		row.added_to_order = 1
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def item_query_hardware(doctype, txt, searchfield, start, page_len, filters):
+	"""Link-Query fuer das Feld "Item" in der Zusatzartikel-Tabelle (siehe
+	frm.set_query in site_visit.js): schraenkt auf die in Site Visit
+	Settings hinterlegte Hardware-Artikelgruppe (inkl. Untergruppen) ein -
+	keine Dienstleistungsartikel als "vor Ort benoetigtes Material". Leere
+	Einstellung = keine Einschraenkung. Nutzt ERPNexts eigene item_query
+	weiter (respektiert disabled/is_sales_item usw.), ergaenzt nur den
+	Gruppenfilter."""
+	from erpnext.controllers.queries import item_query
+	from frappe.utils.nestedset import get_descendants_of
+
+	settings = frappe.get_cached_doc("Site Visit Settings")
+	filters = frappe.parse_json(filters) if isinstance(filters, str) else (filters or {})
+	if settings.hardware_item_group:
+		groups = [settings.hardware_item_group, *get_descendants_of("Item Group", settings.hardware_item_group)]
+		filters["item_group"] = ["in", groups]
+
+	return item_query(doctype, txt, searchfield, start, page_len, filters)
 
 
 @frappe.whitelist()

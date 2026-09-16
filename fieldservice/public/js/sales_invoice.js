@@ -10,6 +10,15 @@
 				{ fieldname: 'from_date', fieldtype: 'Date', label: 'Von (Datum)', reqd: 1, default: frappe.datetime.add_months(heute, -12) },
 				{ fieldname: 'to_date', fieldtype: 'Date', label: 'Bis (Datum)', reqd: 1, default: heute },
 				{ fieldname: 'project', fieldtype: 'Link', options: 'Project', label: 'Projekt', default: frm.doc.project },
+				{
+					fieldname: 'sales_order', fieldtype: 'Link', options: 'Sales Order',
+					label: 'Auftrag (optional, nur Filter)',
+					description: 'Leer lassen, um wie bisher alle Zeiten des Projekts zu importieren - unabhaengig vom Auftrag.',
+					get_query: function () {
+						var projekt = dlg.get_value('project');
+						return projekt ? { filters: { project: projekt } } : {};
+					}
+				},
 				{ fieldname: 'fallback_item', fieldtype: 'Link', options: 'Item', label: 'Ersatz-Artikel (nur fuer Aktivitaetsarten ohne Dienstleistungsartikel)' },
 				{ fieldname: 'replace', fieldtype: 'Check', label: 'Vorhandene Positionen ersetzen', default: 1 }
 			],
@@ -37,9 +46,10 @@
 			var termin_ende = (cfg.lieferdatum_quelle || '').indexOf('Ende') === 0;
 
 			var r = await frappe.call({
-				method: 'erpnext.projects.doctype.timesheet.timesheet.get_projectwise_timesheet_data',
+				method: 'fieldservice.zeit_projekt.timesheet_import.get_timesheet_data',
 				args: {
 					project: v.project || undefined,
+					sales_order: v.sales_order || undefined,
 					from_time: v.from_date + ' 00:00:00',
 					to_time: v.to_date + ' 23:59:59'
 				}
@@ -112,6 +122,14 @@
 				var row = frm.add_child('items', {});
 				await frappe.model.set_value(row.doctype, row.name, 'item_code', artikel);
 				await frappe.model.set_value(row.doctype, row.name, 'qty', flt(t.billing_hours) || 1);
+				// Verknuepfung zum Auftrag auf der Position selbst (Kernfeld
+				// "sales_order" der Sales Invoice Item) - kommt aus
+				// custom_sales_order an der Zeitblatt-Zeile (siehe
+				// install.py/site_visit.py), nicht jeder Zeiteintrag hat
+				// zwingend einen (z. B. manuell erfasste Zeiten ohne Site Visit).
+				if (t.sales_order) {
+					await frappe.model.set_value(row.doctype, row.name, 'sales_order', t.sales_order);
+				}
 
 				// Satz der Aktivitaetsart (nur Fallback)
 				var akt_satz = 0;

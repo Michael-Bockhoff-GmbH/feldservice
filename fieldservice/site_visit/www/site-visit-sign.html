@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>{{ _("Sign Service Visit") }}</title>
+<style>
+	body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; margin: 0; padding: 16px; background: #f8f9fa; color: #1f2937; }
+	.card { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+	h1 { font-size: 18px; margin: 0 0 4px; }
+	.meta { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
+	.meta div { margin-bottom: 2px; }
+	label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; margin: 14px 0 4px; }
+	input[type=text] { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; }
+	canvas { width: 100%; height: 160px; border: 1px solid #d1d5db; border-radius: 4px; touch-action: none; background: #fff; }
+	.actions { display: flex; gap: 8px; margin-top: 12px; }
+	button { flex: 1; padding: 10px; border-radius: 4px; border: 1px solid #d1d5db; background: #fff; font-size: 14px; cursor: pointer; }
+	button.primary { background: #0f766e; color: #fff; border-color: #0f766e; }
+	button:disabled { opacity: .5; cursor: not-allowed; }
+	#message { margin-top: 14px; font-size: 14px; }
+	#message.error { color: #b91c1c; }
+	#message.success { color: #15803d; }
+</style>
+</head>
+<body>
+<div class="card">
+	<h1>{{ _("Sign Service Visit") }}</h1>
+	<div class="meta">
+		<div><b>{{ visit.name }}</b></div>
+		<div>{{ visit.customer_name }} &ndash; {{ visit.date }}</div>
+		{% if visit.description %}<div>{{ visit.description }}</div>{% endif %}
+	</div>
+
+	<label for="signee_name">{{ _("Your name") }}</label>
+	<input type="text" id="signee_name" value="{{ visit.customer_name }}">
+
+	<label>{{ _("Signature") }}</label>
+	<canvas id="pad" width="440" height="160"></canvas>
+	<div class="actions">
+		<button id="clear">{{ _("Clear") }}</button>
+		<button id="submit" class="primary">{{ _("Submit signature") }}</button>
+	</div>
+	<div id="message"></div>
+</div>
+
+<script>
+(function () {
+	var canvas = document.getElementById('pad');
+	var ctx = canvas.getContext('2d');
+	ctx.lineWidth = 2;
+	ctx.lineCap = 'round';
+	ctx.strokeStyle = '#111827';
+
+	var scale = window.devicePixelRatio || 1;
+	canvas.width = canvas.clientWidth * scale;
+	canvas.height = canvas.clientHeight * scale;
+	ctx.scale(scale, scale);
+
+	var drawing = false;
+	var hasStroke = false;
+
+	function point(e) {
+		var rect = canvas.getBoundingClientRect();
+		var t = e.touches ? e.touches[0] : e;
+		return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+	}
+	function start(e) { drawing = true; hasStroke = true; var p = point(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+	function move(e) { if (!drawing) return; var p = point(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+	function end() { drawing = false; }
+
+	canvas.addEventListener('mousedown', start);
+	canvas.addEventListener('mousemove', move);
+	window.addEventListener('mouseup', end);
+	canvas.addEventListener('touchstart', start, { passive: false });
+	canvas.addEventListener('touchmove', move, { passive: false });
+	canvas.addEventListener('touchend', end);
+
+	document.getElementById('clear').addEventListener('click', function () {
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		hasStroke = false;
+	});
+
+	function showMessage(text, kind) {
+		var el = document.getElementById('message');
+		el.textContent = text;
+		el.className = kind;
+	}
+
+	document.getElementById('submit').addEventListener('click', function () {
+		if (!hasStroke) {
+			showMessage({{ _("Please sign above first.")|tojson }}, 'error');
+			return;
+		}
+		var btn = this;
+		btn.disabled = true;
+		fetch('/api/method/fieldservice.site_visit.remote_signature.submit_remote_signature', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				name: {{ name|tojson }},
+				key: {{ key|tojson }},
+				signature: canvas.toDataURL('image/png'),
+				signee_name: document.getElementById('signee_name').value,
+			}),
+		})
+			.then(function (r) { return r.ok ? r.json() : r.json().then(function (e) { throw e; }); })
+			.then(function () {
+				showMessage({{ _("Thank you, your signature has been saved.")|tojson }}, 'success');
+				document.getElementById('submit').remove();
+				document.getElementById('clear').remove();
+			})
+			.catch(function (e) {
+				showMessage((e && e.exception) || {{ _("Something went wrong, please try again.")|tojson }}, 'error');
+				btn.disabled = false;
+			});
+	});
+})();
+</script>
+</body>
+</html>
