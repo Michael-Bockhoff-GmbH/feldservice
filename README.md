@@ -72,6 +72,7 @@ fieldservice/
     │   │   ├── site_visit_photo/    # Kindtabelle für Fotos
     │   │   ├── site_visit_item/     # Kindtabelle für Zusatzartikel
     │   │   ├── site_visit_break/    # Kindtabelle für Pausen (Timer)
+    │   │   ├── site_visit_excluded_item_group/ # Kindtabelle für Excluded Item Groups
     │   │   └── site_visit_settings/ # Single-Doctype, App-Einstellungen
     │   ├── print_format/
     │   │   └── site_visit_report/   # PDF-Vorlage
@@ -80,7 +81,7 @@ fieldservice/
     │   ├── www/
     │   │   ├── site-visit-sign.py   # Kontext/Token-Pruefung fuer die Fernunterschrift
     │   │   └── site-visit-sign.html # Oeffentliche Unterschriften-Seite (kein Login)
-    │   ├── site_visit.py            # before_submit/on_cancel/create_sales_order/item_query_hardware/...
+    │   ├── site_visit.py            # before_submit/on_cancel/create_sales_order/item_query_extra_items/...
     │   ├── mileage.py               # Kilometerberechnung ueber OpenRouteService
     │   ├── remote_signature.py      # Signaturlink senden + oeffentliches Speichern der Unterschrift
     │   └── project_dashboard.py     # ergänzt "Site Visit" in den Projekt-Verknüpfungen
@@ -169,6 +170,8 @@ bench --site <deine-site> uninstall-app fieldservice
 
 - die Doctype "Site Visit" und ihre Kindtabellen ("Site Visit Photo",
   "Site Visit Item", "Site Visit Break")
+- die Doctype "Site Visit Settings" und ihre Kindtabelle "Site Visit
+  Excluded Item Group"
 - die Doctype "Zeit Projekt Einstellungen", die vier Custom Fields von
   "Zeit Projekt" (`before_uninstall`) und die Property Setter, die
   Customer Reference (Sales Order.po_no) verpflichtend macht
@@ -191,6 +194,9 @@ bench --site <deine-site> uninstall-app fieldservice
   selbst gehören nicht zu dieser App)
 - alle angelegten Projekte, alle geschriebenen Rechnungspositionen (auch in
   gebuchten Belegen), die Verknüpfungen zwischen Auftrag und Projekt
+- die beim Installieren aktivierte Adress-Autovervollständigung (Kern-
+  Doctype "Geolocation Settings", siehe "Kilometer" unten) – ein
+  site-weites Kernfeature, kein Bestandteil dieser App
 
 **Achtung:** Beim Löschen eines Custom Fields wird die Spalte aus der
 Tabelle entfernt. Die Zuordnungen *Aktivitätsart → Dienstleistungsartikel*
@@ -316,11 +322,15 @@ Feldebene Pflicht (siehe "Timer" unten, wegen des Timer-Entwurfs) – die
 Pflicht wird weiterhin erst beim Buchen selbst geprüft (`before_submit`).
 
 **Zusätzliche Artikel** (`extra_items`): vor Ort zusätzlich benötigtes
-**Hardware**-Material (z. B. ein USB-auf-LAN-Adapter), das noch nicht im
-Auftrag steht – keine Dienstleistungsartikel. Das Artikel-Feld ist über
-`item_query_hardware` (`site_visit.py`) auf die in **Site Visit Settings**
-hinterlegte **Hardware Item Group** (inkl. Untergruppen) eingeschränkt;
-ohne hinterlegte Gruppe gilt keine Einschränkung. Beim Buchen des Site
+Material (z. B. ein USB-auf-LAN-Adapter), das noch nicht im Auftrag steht –
+keine Dienstleistungsartikel. Das Artikel-Feld ist über
+`item_query_extra_items` (`site_visit.py`) auf die in **Site Visit
+Settings** hinterlegten **Excluded Item Groups** eingeschränkt: Artikel aus
+diesen Gruppen (inkl. Untergruppen) sind **nicht** wählbar, alles andere
+schon – ein Ausschluss- statt Einschluss-Filter, da meist nur die eigene(n)
+Dienstleistungs-Artikelgruppe(n) ausgeschlossen werden müssen, statt
+umgekehrt jede erlaubte Hardware-/Verbrauchsmaterial-Gruppe einzeln
+aufzulisten. Ohne hinterlegte Gruppe gilt keine Einschränkung. Beim Buchen des Site
 Visit werden neue (noch nicht übernommene) Zeilen automatisch in die
 Positionen des verknüpften Auftrags aufgenommen – auch wenn der Auftrag
 bereits gebucht ist (über
@@ -386,21 +396,36 @@ die App-weiten Einstellungen von Site Visit:
 | Bereich | Feld | Bedeutung |
 |---|---|---|
 | Kilometer | OpenRouteService API Key | Kostenloser Key von [openrouteservice.org](https://openrouteservice.org) — ohne Key funktioniert "Kilometer berechnen" nicht. Feldtyp **Password**, daher verschlüsselt gespeichert und im Formular maskiert. |
-| Kilometer | Default Start Address | Startpunkt, falls der Site Visit selbst keine eigene Startadresse hat. Leer = Standardadresse der Firma. |
+| Kilometer | Default Start Address | Freitext-Startpunkt, falls der Site Visit selbst keine eigene Startadresse hat. Leer = Standardadresse der Firma. |
 | Kilometer | Mileage Item | Artikel, dessen Verkaufspreis pro Kilometer als Fahrtkosten-Position im Auftrag berechnet wird. Leer = keine automatische Fahrtkosten-Abrechnung. |
-| Zusätzliche Artikel | Hardware Item Group | Nur Artikel aus dieser Gruppe (inkl. Untergruppen) sind als Zusatzartikel wählbar. Leer = keine Einschränkung. |
+| Zusätzliche Artikel | Excluded Item Groups | Artikel aus diesen Gruppen (inkl. Untergruppen, i. d. R. die Dienstleistungs-Gruppe(n)) sind als Zusatzartikel **nicht** wählbar — alles andere schon. Leer = keine Einschränkung. |
 | Fernarbeit | Remote Visit Mode | "Hide Signature" (Unterschriftsfelder ausblenden) oder "Send Signing Link to Customer" (Link per E-Mail). |
 | Fernarbeit | Signature Required | Ohne Unterschrift nicht buchbar — außer bei Fernarbeit im Modus "Hide Signature". |
 
 ## Kilometer
 
-"Calculate Mileage" im Formular (sichtbar, solange der Site Visit gespeichert
-und nicht gebucht ist und ein Kunde gewählt ist) berechnet die einfache
-Fahrstrecke von der Startadresse zur Standardadresse des Kunden über die
-[OpenRouteService](https://openrouteservice.org)-API: zuerst Geocoding
-(Adresstext → Koordinaten) für beide Adressen, dann eine Routenabfrage
-zwischen den Koordinaten (`site_visit/mileage.py`). Das Ergebnis landet
-schreibgeschützt in `distance_km`.
+"Calculate Mileage" im Formular (sichtbar, solange der Site Visit gespeichert,
+nicht gebucht, nicht als Fernarbeit markiert ist und ein Kunde gewählt ist —
+bei Fernarbeit ist die ganze Kilometer-Sektion ausgeblendet, da dabei nicht
+gefahren wird) berechnet die einfache Fahrstrecke von der Startadresse zur
+Zieladresse über die [OpenRouteService](https://openrouteservice.org)-API:
+zuerst Geocoding (Adresstext → Koordinaten) für beide Adressen, dann eine
+Routenabfrage zwischen den Koordinaten (`site_visit/mileage.py`). Das
+Ergebnis landet schreibgeschützt in `distance_km`.
+
+**Start-/Zieladresse sind reiner Freitext** (Felder `start_address`/
+`customer_address_override` am Site Visit, `default_start_address` in Site
+Visit Settings — alle drei Feldtyp **Autocomplete** statt **Link
+(Address)**) — es ist **kein eigener Address-Datensatz in ERPNext nötig**.
+Während der Eingabe schlägt Frappes eigene Adress-Autovervollständigung
+(Kern-Doctype **Geolocation Settings**) passende Adressen vor; `install.py`
+(`_geolocation_autocomplete_enable`) aktiviert dafür beim Installieren
+automatisch **Nominatim** (OpenStreetMap) als Anbieter — kostenlos, offen,
+kein eigener API-Key nötig. Wählt der Techniker einen Vorschlag,
+formatiert `format_autocomplete_address()` (`public/js/site_visit.js`,
+analog in `site_visit_settings.js`) das zurückgelieferte JSON in eine
+lesbare, direkt geocodierbare Adresszeile um. Frei eingetippter Text ohne
+Vorschlagsauswahl bleibt unverändert nutzbar.
 
 Startadresse (in dieser Reihenfolge, erste gefundene gewinnt):
 
@@ -408,10 +433,18 @@ Startadresse (in dieser Reihenfolge, erste gefundene gewinnt):
    einen Einsatz, z. B. wenn der Techniker von einem anderen Einsatz aus
    direkt weiterfährt)
 2. **Default Start Address** in Site Visit Settings
-3. Standardadresse der am Site Visit hinterlegten **Company**
-   (`frappe.contacts.doctype.address.address.get_default_address`)
+3. Standardadresse der am Site Visit hinterlegten **Company** (dafür
+   weiterhin ein echter ERPNext-Address-Datensatz — Firmenadressen sind
+   stabil genug, dass sich das lohnt)
 
-Ohne konfigurierten API-Key oder ohne auffindbare Start-/Kundenadresse
+Zieladresse (in dieser Reihenfolge):
+
+1. Feld **Customer Site Address** direkt am Site Visit — z. B. eine
+   Außenstelle/ein Remote Office des Kunden, abweichend von dessen
+   hinterlegter Standardadresse
+2. Standardadresse des am Site Visit gewählten **Customer**
+
+Ohne konfigurierten API-Key oder ohne auffindbare Start-/Zieladresse
 schlägt die Berechnung mit einer verständlichen Fehlermeldung fehl — die
 Kilometerberechnung ist eine Komfortfunktion, kein Teil der
 `before_submit`-Pflichtprüfung, ein Site Visit lässt sich auch ohne

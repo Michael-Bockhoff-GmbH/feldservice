@@ -249,22 +249,28 @@ def _get_mileage_line(doc, so):
 
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
-def item_query_hardware(doctype, txt, searchfield, start, page_len, filters):
+def item_query_extra_items(doctype, txt, searchfield, start, page_len, filters):
 	"""Link-Query fuer das Feld "Item" in der Zusatzartikel-Tabelle (siehe
-	frm.set_query in site_visit.js): schraenkt auf die in Site Visit
-	Settings hinterlegte Hardware-Artikelgruppe (inkl. Untergruppen) ein -
-	keine Dienstleistungsartikel als "vor Ort benoetigtes Material". Leere
-	Einstellung = keine Einschraenkung. Nutzt ERPNexts eigene item_query
-	weiter (respektiert disabled/is_sales_item usw.), ergaenzt nur den
-	Gruppenfilter."""
+	frm.set_query in site_visit.js): schliesst die in Site Visit Settings
+	hinterlegten Artikelgruppen (inkl. Untergruppen) aus - z. B. die
+	Dienstleistungsartikel, damit vor Ort nicht versehentlich eine
+	Dienstleistung statt benoetigten Materials erfasst wird. In den
+	meisten Faellen reicht es, genau die Dienstleistungs-Artikelgruppe(n)
+	hier einzutragen - alles andere (Hardware, Verbrauchsmaterial, ...)
+	bleibt waehlbar. Leere Einstellung = keine Einschraenkung. Nutzt
+	ERPNexts eigene item_query weiter (respektiert disabled/is_sales_item
+	usw.), ergaenzt nur den Gruppenfilter."""
 	from erpnext.controllers.queries import item_query
 	from frappe.utils.nestedset import get_descendants_of
 
 	settings = frappe.get_cached_doc("Site Visit Settings")
 	filters = frappe.parse_json(filters) if isinstance(filters, str) else (filters or {})
-	if settings.hardware_item_group:
-		groups = [settings.hardware_item_group, *get_descendants_of("Item Group", settings.hardware_item_group)]
-		filters["item_group"] = ["in", groups]
+	excluded_groups = [row.item_group for row in settings.excluded_item_groups]
+	if excluded_groups:
+		all_excluded = set(excluded_groups)
+		for group in excluded_groups:
+			all_excluded.update(get_descendants_of("Item Group", group))
+		filters["item_group"] = ["not in", list(all_excluded)]
 
 	return item_query(doctype, txt, searchfield, start, page_len, filters)
 

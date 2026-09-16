@@ -5,14 +5,22 @@ den /geocode/search-Endpunkt, dann die eigentliche Route ueber
 /v2/directions/driving-car. Beides mit demselben API-Key (Site Visit
 Settings -> OpenRouteService API Key).
 
+Start- und Zieladresse sind reiner Freitext (Felder start_address/
+customer_address_override auf Site Visit, default_start_address auf Site
+Visit Settings - alle drei "Autocomplete" statt "Link (Address)"), keine
+ERPNext-Address-Datensaetze noetig. Die Formularfelder bieten trotzdem eine
+Sofortsuche waehrend der Eingabe, ueber Frappes eigene Adress-
+Autovervollstaendigung (Kern-Doctype "Geolocation Settings", siehe
+install.py -> _geolocation_autocomplete_enable) - standardmaessig ueber
+Nominatim (OpenStreetMap, kostenlos/offen, kein eigener API-Key noetig).
+
 Bewusst kein Caching von Koordinaten hier - Adressen aendern sich selten
 genug, dass der zusaetzliche Code (inkl. Invalidierung) den API-Aufruf
 nicht aufwiegt. Ein Fehlschlag (kein Key, Adresse nicht gefunden, Netzwerk)
 wirft frappe.ValidationError mit einer fuer den Techniker verstaendlichen
 Meldung - die Kilometerberechnung ist eine Komfortfunktion, kein Teil der
 before_submit-Pflichtpruefung, ein Site Visit laesst sich auch ohne
-Kilometer buchen.
-"""
+Kilometer buchen."""
 
 import frappe
 from frappe import _
@@ -22,10 +30,12 @@ DIRECTIONS_URL = "https://api.openrouteservice.org/v2/directions/driving-car"
 REQUEST_TIMEOUT = 10
 
 
-def get_start_address(doc):
-	"""Startadresse fuer die Kilometerberechnung: Ueberschreibung am Site
-	Visit selbst, sonst die in Site Visit Settings hinterlegte
-	Standard-Startadresse, sonst die Standardadresse der Firma."""
+def get_start_text(doc):
+	"""Startadresse (Freitext) fuer die Kilometerberechnung: Ueberschreibung
+	am Site Visit selbst, sonst die in Site Visit Settings hinterlegte
+	Standard-Startadresse, sonst die Standardadresse der Firma (dafuer noch
+	ein echter Address-Datensatz - Firmenadressen sind stabil genug, dass
+	sich ein eigener ERPNext-Datensatz dafuer lohnt)."""
 	if doc.start_address:
 		return doc.start_address
 
@@ -35,7 +45,21 @@ def get_start_address(doc):
 
 	from frappe.contacts.doctype.address.address import get_default_address
 
-	return get_default_address("Company", doc.company)
+	address_name = get_default_address("Company", doc.company)
+	return _address_text(address_name) if address_name else None
+
+
+def get_destination_text(doc):
+	"""Zieladresse (Freitext): Ueberschreibung am Site Visit selbst (z. B.
+	eine Aussenstelle/Remote Office des Kunden), sonst die Standardadresse
+	des Kunden."""
+	if doc.customer_address_override:
+		return doc.customer_address_override
+
+	from frappe.contacts.doctype.address.address import get_default_address
+
+	address_name = get_default_address("Customer", doc.customer)
+	return _address_text(address_name) if address_name else None
 
 
 def calculate_distance_km(doc):
@@ -50,8 +74,8 @@ def calculate_distance_km(doc):
 			_("No OpenRouteService API key configured. Set one in Site Visit Settings."), title=_("Mileage")
 		)
 
-	start_address = get_start_address(doc)
-	if not start_address:
+	start_text = get_start_text(doc)
+	if not start_text:
 		frappe.throw(
 			_(
 				"No start address found. Set a Start Address on the Site Visit, a Default Start "
@@ -60,14 +84,17 @@ def calculate_distance_km(doc):
 			title=_("Mileage"),
 		)
 
-	from frappe.contacts.doctype.address.address import get_default_address
+	destination_text = get_destination_text(doc)
+	if not destination_text:
+		frappe.throw(
+			_(
+				"Customer {0} has no address on file. Set a Customer Site Address on the Site Visit instead."
+			).format(doc.customer),
+			title=_("Mileage"),
+		)
 
-	customer_address = get_default_address("Customer", doc.customer)
-	if not customer_address:
-		frappe.throw(_("Customer {0} has no address on file.").format(doc.customer), title=_("Mileage"))
-
-	start_coords = _geocode(start_address, api_key)
-	end_coords = _geocode(customer_address, api_key)
+	start_coords = _geocode(start_text, api_key)
+	end_coords = _geocode(destination_text, api_key)
 	return _route_distance_km(start_coords, end_coords, api_key)
 
 
@@ -77,15 +104,14 @@ def _address_text(address_name):
 	return ", ".join(part for part in parts if part)
 
 
-def _geocode(address_name, api_key):
-	text = _address_text(address_name)
+def _geocode(text, api_key):
 	response = requests_get(
 		GEOCODE_URL,
 		params={"api_key": api_key, "text": text, "size": 1},
 	)
 	features = response.get("features") or []
 	if not features:
-		frappe.throw(_("Could not find coordinates for address {0}.").format(address_name), title=_("Mileage"))
+		frappe.throw(_("Could not find coordinates for address {0}.").format(text), title=_("Mileage"))
 	# GeoJSON: [longitude, latitude]
 	return features[0]["geometry"]["coordinates"]
 

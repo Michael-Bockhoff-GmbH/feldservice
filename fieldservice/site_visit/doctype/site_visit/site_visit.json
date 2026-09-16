@@ -30,6 +30,7 @@
   "section_break_remote",
   "is_remote",
   "start_address",
+  "customer_address_override",
   "column_break_remote",
   "distance_km",
   "one_way_only",
@@ -197,17 +198,25 @@
    "label": "Remote Visit"
   },
   {
-   "description": "Overrides the default mileage start point (Site Visit Settings, or the Company's default address) for this visit only.",
+   "depends_on": "eval:!doc.is_remote",
+   "description": "Free-text address, no Address record required - search-as-you-type via Frappe's own address autocomplete (Geolocation Settings). Overrides the default mileage start point (Site Visit Settings, or the Company's default address) for this visit only.",
    "fieldname": "start_address",
-   "fieldtype": "Link",
-   "label": "Start Address",
-   "options": "Address"
+   "fieldtype": "Autocomplete",
+   "label": "Start Address"
+  },
+  {
+   "depends_on": "eval:!doc.is_remote",
+   "description": "Free-text address, no Address record required. Overrides the customer's default address on file for this visit only - e.g. a remote office or a different site of the customer.",
+   "fieldname": "customer_address_override",
+   "fieldtype": "Autocomplete",
+   "label": "Customer Site Address"
   },
   {
    "fieldname": "column_break_remote",
    "fieldtype": "Column Break"
   },
   {
+   "depends_on": "eval:!doc.is_remote",
    "description": "One-way driving distance to the customer's address, via the \"Calculate Mileage\" button (requires an OpenRouteService API key in Site Visit Settings).",
    "fieldname": "distance_km",
    "fieldtype": "Float",
@@ -216,7 +225,7 @@
   },
   {
    "default": "0",
-   "depends_on": "distance_km",
+   "depends_on": "eval:doc.distance_km && !doc.is_remote",
    "description": "E.g. driving straight on to the next customer afterwards - bills only the one-way distance instead of a round trip (see Site Visit Settings -> Mileage Item).",
    "fieldname": "one_way_only",
    "fieldtype": "Check",

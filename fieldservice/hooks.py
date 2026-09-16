@@ -39,6 +39,7 @@ add_to_apps_screen = [
 # ---------------------------------------------------------------------------
 doctype_js = {
 	"Site Visit": "public/js/site_visit.js",
+	"Site Visit Settings": "public/js/site_visit_settings.js",
 	"Sales Invoice": "public/js/sales_invoice.js",
 	"Sales Order": "public/js/sales_order.js",
 }

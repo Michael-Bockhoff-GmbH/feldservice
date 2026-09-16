@@ -10,7 +10,7 @@
   "column_break_mileage",
   "mileage_item",
   "hardware_section",
-  "hardware_item_group",
+  "excluded_item_groups",
   "remote_section",
   "remote_mode",
   "column_break_remote",
@@ -29,11 +29,10 @@
    "label": "OpenRouteService API Key"
   },
   {
-   "description": "Used as the mileage start point when a Site Visit does not set its own Start Address. Leave empty to use the Company's own default address instead.",
+   "description": "Free-text address, no Address record required - search-as-you-type via Frappe's own address autocomplete (Geolocation Settings). Used as the mileage start point when a Site Visit does not set its own Start Address. Leave empty to use the Company's own default address instead.",
    "fieldname": "default_start_address",
-   "fieldtype": "Link",
-   "label": "Default Start Address",
-   "options": "Address"
+   "fieldtype": "Autocomplete",
+   "label": "Default Start Address"
   },
   {
    "fieldname": "column_break_mileage",
@@ -52,11 +51,11 @@
    "label": "Additional Items"
   },
   {
-   "description": "Only items from this Item Group (and its sub-groups) may be added as an Additional Item on a Site Visit. Leave empty for no restriction.",
-   "fieldname": "hardware_item_group",
-   "fieldtype": "Link",
-   "label": "Hardware Item Group",
-   "options": "Item Group"
+   "description": "Items from these Item Groups (and their sub-groups) cannot be added as an Additional Item on a Site Visit - everything else is allowed. In most cases, excluding your services/labor group(s) here is enough. Leave empty for no restriction.",
+   "fieldname": "excluded_item_groups",
+   "fieldtype": "Table MultiSelect",
+   "label": "Excluded Item Groups",
+   "options": "Site Visit Excluded Item Group"
   },
   {
    "fieldname": "remote_section",
