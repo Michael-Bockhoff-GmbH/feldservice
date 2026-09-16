@@ -76,7 +76,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Optional: Einsatz einem Projekt zuordnen",
+   "description": "Must be set before submitting - not required yet when saving as a draft (e.g. via the timer).",
    "fieldname": "project",
    "fieldtype": "Link",
    "label": "Project",

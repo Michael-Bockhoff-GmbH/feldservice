@@ -34,8 +34,8 @@ def before_submit(doc, method=None):
 	opened it" entsteht (gleiche Begruendung wie
 	fieldservice.zeit_projekt.sales_order.before_submit).
 
-	customer/activity_type/sales_order/to_time sind absichtlich nicht mehr
-	reqd im Feld (siehe site_visit.json) - ein Entwurf mit nur laufendem
+	customer/project/activity_type/sales_order/to_time sind absichtlich
+	nicht mehr reqd im Feld (siehe site_visit.json) - ein Entwurf mit nur laufendem
 	Timer (from_time gesetzt, "Start Timer" speichert sofort, siehe
 	site_visit.js) waere sonst gar nicht speicherbar. Deshalb hier explizit
 	vor dem Buchen geprueft. Statt eines vorhandenen Auftrags reicht auch
@@ -46,6 +46,8 @@ def before_submit(doc, method=None):
 
 	if not doc.customer:
 		frappe.throw(_("Please select a Customer before submitting."))
+	if not doc.project:
+		frappe.throw(_("Please select a Project before submitting."))
 	if not doc.activity_type:
 		frappe.throw(_("Please select an Activity Type before submitting."))
 	if not doc.sales_order and not doc.create_sales_order:

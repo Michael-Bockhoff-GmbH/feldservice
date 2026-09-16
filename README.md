@@ -274,6 +274,10 @@ ihr Label, siehe `HOME_SHORTCUTS` in `install.py`).
 
 ## Auftrag
 
+`project` ist ebenfalls Pflicht (wie `customer`/`activity_type`/`sales_order`
+erst beim Buchen selbst geprüft, nicht auf Feldebene – sonst wäre ein
+Entwurf mit nur laufendem Timer nicht speicherbar, siehe "Timer" unten).
+
 Jeder Einsatz muss einem Auftrag zugeordnet sein, da darüber (und über das
 automatisch erzeugte Timesheet) abgerechnet wird – entweder ein bereits
 bestehender (Feld `sales_order`), oder ein neuer, automatisch beim Buchen
