@@ -4,7 +4,7 @@ __version__ = "0.1.0"
 def _patch_pdf_on_submit_for_chrome():
 	"""pdf_on_submit.attach_pdf.get_pdf_data() ruft frappe.utils.pdf.get_pdf()
 	direkt auf - den rohen wkhtmltopdf-Pfad, ohne den pdf_generator-Mechanismus
-	von frappe.get_print() (siehe feldservice.site_visit.site_visit.force_chrome_pdf
+	von frappe.get_print() (siehe fieldservice.site_visit.site_visit.force_chrome_pdf
 	fuer den Hintergrund: wkhtmltopdf scheitert auf diesem Server grundsaetzlich).
 	Betrifft damit auch die automatische PDF-Anlage beim Buchen, die
 	force_chrome_pdf nicht abdeckt (kein HTTP-Request an download_pdf/
@@ -15,11 +15,11 @@ def _patch_pdf_on_submit_for_chrome():
 	Funktion ersetzt, statt es zu forken. Steht bewusst hier statt in
 	hooks.py: Frappe importiert hooks.py nur lazy, sobald ein konkreter Hook
 	abgefragt wird (bestaetigt per bench console - attach_pdf.get_pdf_data
-	blieb unveraendert, bis feldservice.hooks explizit importiert wurde). Das
+	blieb unveraendert, bis fieldservice.hooks explizit importiert wurde). Das
 	Paket-__init__.py dagegen muss Python zwingend zuerst importieren, bevor
 	irgendein Untermodul dieser App ueberhaupt referenzierbar ist - das
 	garantiert den Patch in jedem Prozesstyp (Web, Queue-Worker, Scheduler),
-	nicht nur dort, wo zufaellig zuerst ein feldservice-Hook gezogen wird."""
+	nicht nur dort, wo zufaellig zuerst ein fieldservice-Hook gezogen wird."""
 	try:
 		from pdf_on_submit import attach_pdf
 	except ImportError:

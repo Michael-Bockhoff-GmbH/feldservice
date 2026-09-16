@@ -1,5 +1,5 @@
 {
- "app": "feldservice",
+ "app": "fieldservice",
  "charts": [],
  "content": "[{\"id\": \"h1\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Site Visits</b></span>\", \"col\": 12}}, {\"id\": \"c1\", \"type\": \"card\", \"data\": {\"card_name\": \"Site Visit\", \"col\": 4}}]",
  "creation": "2026-09-13 09:00:00.000000",

@@ -1,5 +1,5 @@
 // Zeitblatt wird erst beim Buchen angelegt (serverseitig, siehe hooks.py ->
-// doc_events -> feldservice.site_visit.site_visit.before_submit). Dieses
+// doc_events -> fieldservice.site_visit.site_visit.before_submit). Dieses
 // Skript setzt nur Feld-Defaults und liefert nach dem Buchen einen Link
 // dorthin - keine async Calls vor dem Buchen, um die Race Condition aus
 // sales_order.js (Modul Zeit Projekt) nicht zu wiederholen.
@@ -272,7 +272,7 @@ function show_create_sales_order_dialog(frm) {
 		primary_action_label: __('Create'),
 		primary_action(values) {
 			frappe.call({
-				method: 'feldservice.site_visit.site_visit.create_sales_order',
+				method: 'fieldservice.site_visit.site_visit.create_sales_order',
 				args: {
 					customer: frm.doc.customer,
 					company: frm.doc.company,

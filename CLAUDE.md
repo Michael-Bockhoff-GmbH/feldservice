@@ -1,6 +1,6 @@
 # Projektkontext
 
-App `feldservice` ("IT Support mit Außendienst") für ERPNext v16, entwickelt
+App `fieldservice` ("IT Support mit Außendienst") für ERPNext v16, entwickelt
 auf einem Server mit Frappe Manager (fm). Entstanden aus dem Zusammenlegen
 der vormals eigenständigen Apps `site_visit` und `zeit_projekt` - siehe
 README.md "Zusammenlegung: was sich geändert hat" für den Hintergrund.
@@ -21,7 +21,7 @@ Details zu Funktionsweise, Feldern und Einstellungen stehen in `README.md`
 
 ## Umgebung
 
-Dieses Verzeichnis ist gleichzeitig `/workspace/frappe-bench/apps/feldservice`
+Dieses Verzeichnis ist gleichzeitig `/workspace/frappe-bench/apps/fieldservice`
 im Container. Dateien werden direkt hier bearbeitet. Alles, was bench oder
 Python im Frappe-Kontext braucht, läuft über:
 
@@ -35,11 +35,11 @@ Frappe- und ERPNext-Quellcode zum Nachschlagen (nur lesen, nie ändern):
 
 | Zweck | Befehl |
 |---|---|
-| Nach JS-Änderung | `fm shell <BENCHNAME> -c "bench build --app feldservice"` |
+| Nach JS-Änderung | `fm shell <BENCHNAME> -c "bench build --app fieldservice"` |
 | Nach hooks.py/Python-Änderung | `fm shell <BENCHNAME> -c "bench --site <SITENAME> clear-cache && bench restart"` |
 | Nach DocType-Änderung | `fm shell <BENCHNAME> -c "bench --site <SITENAME> migrate"` |
-| App installieren | `fm shell <BENCHNAME> -c "bench --site <SITENAME> install-app feldservice"` |
-| App entfernen | `fm shell <BENCHNAME> -c "bench --site <SITENAME> uninstall-app feldservice --yes"` |
+| App installieren | `fm shell <BENCHNAME> -c "bench --site <SITENAME> install-app fieldservice"` |
+| App entfernen | `fm shell <BENCHNAME> -c "bench --site <SITENAME> uninstall-app fieldservice --yes"` |
 | Logs | `fm logs <BENCHNAME> --follow` |
 
 ## Regeln
@@ -53,8 +53,8 @@ Frappe- und ERPNext-Quellcode zum Nachschlagen (nur lesen, nie ändern):
   bisherigen Namen bestehen — nicht zusammenlegen oder umbenennen, das wäre
   eine (weitere) datenrelevante Migration, kein reiner Code-Umbau.
 - Alle App-internen Python-Pfade (in `hooks.py` und in `frappe.call`-Aufrufen
-  aus `public/js/`) beginnen mit `feldservice.` (Beispiel:
-  `feldservice.site_visit.site_visit.before_submit`), nicht mit dem alten
+  aus `public/js/`) beginnen mit `fieldservice.` (Beispiel:
+  `fieldservice.site_visit.site_visit.before_submit`), nicht mit dem alten
   `site_visit.`/`zeit_projekt.` — bei Copy-Paste aus alten Notizen oder den
   (archivierten) Vorgänger-Repos darauf achten.
 - Vor jeder Behauptung über Frappe-/ERPNext-Verhalten: im Quellcode

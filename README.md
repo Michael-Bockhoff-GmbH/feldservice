@@ -2,7 +2,7 @@
 
 Frappe-App für ERPNext v15/v16, entstanden aus dem Zusammenlegen der beiden
 vormals eigenständigen Apps **`site_visit`** und **`zeit_projekt`** in eine
-gemeinsame App (`feldservice`). Drei Funktionen:
+gemeinsame App (`fieldservice`). Drei Funktionen:
 
 1. **Site Visit** – ein Techniker dokumentiert einen Kundeneinsatz vor Ort
    (Zeitraum inkl. Pausen, Fotos, Kundenunterschrift) und bekommt beim Buchen
@@ -23,20 +23,20 @@ Zusammenspiel heraus kam der Wunsch, sie als eine App auszuliefern.
 
 ## Zusammenlegung: was sich geändert hat
 
-`feldservice` ist technisch weiterhin **zwei Frappe-Module** in einer App –
+`fieldservice` ist technisch weiterhin **zwei Frappe-Module** in einer App –
 "Site Visit" und "Zeit Projekt" wurden unverändert aus den beiden
 Ursprungs-Apps übernommen (gleicher Modulname, gleiche Doctypes, gleiche
 Feldnamen). Nur die App drumherum (Name, `hooks.py`, `install.py`,
 Übersichts-Kachel) ist jetzt eine gemeinsame. Wer eine der beiden alten Apps
 (`site_visit`, `zeit_projekt` – siehe deren Repositories, jetzt archiviert)
 bereits installiert hatte: dort erst `bench uninstall-app <alte-app>`, dann
-`feldservice` installieren, da beide Module sich nicht gleichzeitig zwei
+`fieldservice` installieren, da beide Module sich nicht gleichzeitig zwei
 Apps zuordnen lassen.
 
 Alle Python-Pfade, die App-intern auf sich selbst verweisen (`doc_events`,
 `before_request`, `override_doctype_dashboards`, aufgerufene
 `frappe.call`-Methoden in den Formular-Skripten), wurden dabei von
-`site_visit.*`/`zeit_projekt.*` auf `feldservice.*` umgestellt – die
+`site_visit.*`/`zeit_projekt.*` auf `fieldservice.*` umgestellt – die
 **Modulnamen** ("Site Visit", "Zeit Projekt") und alle **Doctype-/Feldnamen**
 blieben unverändert.
 
@@ -45,12 +45,12 @@ blieben unverändert.
 ## Aufbau
 
 ```
-feldservice/
+fieldservice/
 ├── pyproject.toml
 ├── license.txt
 ├── README.md
 ├── CLAUDE.md
-└── feldservice/
+└── fieldservice/
     ├── __init__.py           # Versionsnummer + pdf_on_submit-Chrome-Patch
     ├── hooks.py              # doctype_js + doc_events + Install-Hooks (beide Module)
     ├── install.py            # after_install/before_uninstall (beide Module)
@@ -61,7 +61,7 @@ feldservice/
     │   │   ├── site_visit.js      # Site Visit: Feld-Defaults, Timer, Neuer-Auftrag-Dialog
     │   │   ├── sales_order.js     # Zeit Projekt: Hinweise + Sprung zum Projekt nach dem Buchen
     │   │   └── sales_invoice.js   # Zeit Projekt: Import-Knopf und Positionslogik
-    │   └── images/feldservice-logo.svg
+    │   └── images/fieldservice-logo.svg
     ├── translations/
     │   └── de.csv               # Deutsche Übersetzungen fürs Modul "Site Visit" (siehe "Sprache")
     ├── workspace_sidebar/
@@ -102,7 +102,7 @@ Die beiden Module sind historisch unterschiedlich aufgebaut, das ist nach
 der Zusammenlegung bewusst so geblieben:
 
 - **Site Visit**: auf Englisch geschrieben (Feldbezeichnungen, Meldungen,
-  Druckvorlage), Übersetzung über `feldservice/translations/de.csv` (Frappes
+  Druckvorlage), Übersetzung über `fieldservice/translations/de.csv` (Frappes
   normales Verfahren – der englische Text im Code/in der Doctype-JSON
   bleibt die Quelle, die CSV-Datei übersetzt für Nutzer mit Sprache
   "Deutsch"). Standardbegriffe, die bereits über Frappe/ERPNext selbst
@@ -119,10 +119,10 @@ Fallback). Bei Zeit-Projekt-Texten direkt im Code ändern.
 
 ## Vor der Installation anpassen
 
-In `pyproject.toml` und `feldservice/hooks.py` Name, E-Mail und Beschreibung
+In `pyproject.toml` und `fieldservice/hooks.py` Name, E-Mail und Beschreibung
 eintragen. Willst du die App anders nennen, muss der Name an vier Stellen
 konsistent sein: Ordnername, Paketordner, `app_name` in `hooks.py` und
-`name` in `pyproject.toml` – dazu alle `feldservice.*`-Pfade in `hooks.py`
+`name` in `pyproject.toml` – dazu alle `fieldservice.*`-Pfade in `hooks.py`
 (`doc_events`, `before_request`, `override_doctype_dashboards`,
 `add_to_apps_screen`, `after_install`/`before_uninstall`) sowie die
 `frappe.call`-Methodenpfade in `public/js/site_visit.js` und
@@ -134,9 +134,9 @@ konsistent sein: Ordnername, Paketordner, `app_name` in `hooks.py` und
 
 ```bash
 cd ~/frappe-bench
-bench get-app https://github.com/<dein-user>/feldservice.git
-bench --site <deine-site> install-app feldservice
-bench build --app feldservice
+bench get-app https://github.com/<dein-user>/fieldservice.git
+bench --site <deine-site> install-app fieldservice
+bench build --app fieldservice
 bench --site <deine-site> clear-cache
 ```
 
@@ -154,8 +154,8 @@ Eigene Apps brauchen dort ein Git-Repository und eine eigene Bench-Gruppe
 ## Deinstallation
 
 ```bash
-bench --site <deine-site> uninstall-app feldservice --dry-run   # nur anzeigen
-bench --site <deine-site> uninstall-app feldservice
+bench --site <deine-site> uninstall-app fieldservice --dry-run   # nur anzeigen
+bench --site <deine-site> uninstall-app fieldservice
 ```
 
 **Was dabei entfernt wird:**
@@ -231,7 +231,7 @@ laufen. Löschen musst du sie selbst.
 ## Eigene App im Desk
 
 Die App bringt ein eigenes Logo mit
-(`public/images/feldservice-logo.svg`) und registriert sich über
+(`public/images/fieldservice-logo.svg`) und registriert sich über
 `add_to_apps_screen`/`app_logo_url` in `hooks.py` als eigene Kachel auf der
 Apps-Übersicht (`/apps`), inklusive einer eigenen Workspace mit
 Verknüpfungen zu "Site Visit" und "Timesheet".
@@ -317,14 +317,14 @@ Unterschriftsblock) und setzt es als Standard-Druckformat für "Site Visit".
 Das alleine erzeugt aber noch keine automatische PDF-Anlage beim Buchen –
 dafür braucht es einen PDF-Automatisierungsmechanismus wie die App
 [`pdf_on_submit`](https://github.com/alyf-de/erpnext_pdf-on-submit) (bewusst
-keine harte Abhängigkeit, `feldservice` funktioniert auch ohne).
+keine harte Abhängigkeit, `fieldservice` funktioniert auch ohne).
 
 Ist `pdf_on_submit` zum Zeitpunkt der Installation bereits vorhanden, trägt
 `install.py` automatisch die Zeile `Site Visit` / `Site Visit Report` in
 dessen **PDF on Submit Settings** ein – kein manueller Schritt nötig. Wird
 `pdf_on_submit` erst später installiert, einmalig von Hand nachtragen (die
 gleiche Zeile in *Enabled For*) oder `bench execute
-feldservice.install.after_install` erneut laufen lassen.
+fieldservice.install.after_install` erneut laufen lassen.
 
 `hooks.py` patcht zusätzlich `pdf_on_submit.attach_pdf.get_pdf_data()`,
 damit die automatische PDF-Erzeugung über `frappe.get_print(...,
@@ -333,7 +333,7 @@ wkhtmltopdf-Aufruf – auf Servern, auf denen wkhtmltopdf grundsätzlich
 fehlschlägt (siehe `force_chrome_pdf` in `site_visit/site_visit.py`), würde
 die automatische PDF-Anlage sonst im Hintergrund lautlos scheitern. Der
 Patch greift nur, wenn `pdf_on_submit` tatsächlich installiert ist
-(`try`/`except ImportError`), und liegt in `feldservice/__init__.py` (siehe
+(`try`/`except ImportError`), und liegt in `fieldservice/__init__.py` (siehe
 Kommentar dort für die Begründung).
 
 Ohne `pdf_on_submit` (oder eine ähnliche App) bleibt das Print Format

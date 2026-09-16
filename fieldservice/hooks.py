@@ -1,4 +1,4 @@
-app_name = "feldservice"
+app_name = "fieldservice"
 app_title = "IT Support mit Außendienst"
 app_publisher = "Dein Name"
 app_description = (
@@ -18,15 +18,15 @@ required_apps = ["frappe/erpnext"]
 # Module ("Site Visit", "Zeit Projekt") unter eigenem Namen bestehen
 # (modules.txt), nur die App drumherum ist jetzt eine gemeinsame.
 # ---------------------------------------------------------------------------
-app_logo_url = "/assets/feldservice/images/feldservice-logo.svg"
+app_logo_url = "/assets/fieldservice/images/fieldservice-logo.svg"
 
 add_to_apps_screen = [
 	{
-		"name": "feldservice",
-		"logo": "/assets/feldservice/images/feldservice-logo.svg",
+		"name": "fieldservice",
+		"logo": "/assets/fieldservice/images/fieldservice-logo.svg",
 		"title": "IT Support mit Außendienst",
 		"route": "/app/site-visit",
-		"has_permission": "feldservice.site_visit.site_visit.check_app_permission",
+		"has_permission": "fieldservice.site_visit.site_visit.check_app_permission",
 	}
 ]
 
@@ -54,11 +54,11 @@ doctype_js = {
 # ---------------------------------------------------------------------------
 doc_events = {
 	"Site Visit": {
-		"before_submit": "feldservice.site_visit.site_visit.before_submit",
-		"on_cancel": "feldservice.site_visit.site_visit.on_cancel",
+		"before_submit": "fieldservice.site_visit.site_visit.before_submit",
+		"on_cancel": "fieldservice.site_visit.site_visit.on_cancel",
 	},
 	"Sales Order": {
-		"before_submit": "feldservice.zeit_projekt.sales_order.before_submit",
+		"before_submit": "fieldservice.zeit_projekt.sales_order.before_submit",
 	},
 }
 
@@ -85,7 +85,7 @@ doc_events = {
 # dieser App, wirkt aber (wie alle Hooks) serverweit fuer alle
 # installierten Apps.
 # ---------------------------------------------------------------------------
-before_request = ["feldservice.site_visit.site_visit.force_chrome_pdf"]
+before_request = ["fieldservice.site_visit.site_visit.force_chrome_pdf"]
 
 # ---------------------------------------------------------------------------
 # Site Visit in der Verknuepfungen-Liste des Projekt-Formulars
@@ -94,7 +94,7 @@ before_request = ["feldservice.site_visit.site_visit.force_chrome_pdf"]
 # Eintrag, ersetzt nicht die von ERPNext gelieferte Liste.
 # ---------------------------------------------------------------------------
 override_doctype_dashboards = {
-	"Project": "feldservice.site_visit.project_dashboard.get_data",
+	"Project": "fieldservice.site_visit.project_dashboard.get_data",
 }
 
 # ---------------------------------------------------------------------------
@@ -104,10 +104,10 @@ override_doctype_dashboards = {
 # fuer die einzelnen Schritte (Custom Fields von "Zeit Projekt",
 # PDF on Submit Settings-Eintrag von "Site Visit").
 # ---------------------------------------------------------------------------
-after_install = "feldservice.install.after_install"
-before_uninstall = "feldservice.install.before_uninstall"
+after_install = "fieldservice.install.after_install"
+before_uninstall = "fieldservice.install.before_uninstall"
 
 # Der pdf_on_submit-Patch fuer den automatischen PDF-Weg steht in
-# feldservice/__init__.py, nicht hier - siehe Kommentar dort fuer die
+# fieldservice/__init__.py, nicht hier - siehe Kommentar dort fuer die
 # Begruendung (hooks.py wird nicht zuverlaessig in jedem Prozesstyp beim
 # Start importiert, das Paket-__init__.py dagegen schon).

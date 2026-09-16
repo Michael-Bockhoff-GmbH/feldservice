@@ -1,5 +1,5 @@
 // Projekt zum Auftrag wird erst beim Bestaetigen (Buchen) angelegt.
-// Die Anlage selbst laeuft serverseitig in feldservice.zeit_projekt.sales_order.before_submit
+// Die Anlage selbst laeuft serverseitig in fieldservice.zeit_projekt.sales_order.before_submit
 // (siehe hooks.py -> doc_events), im selben Request wie das Buchen. Dieses
 // Skript liefert nur noch Hinweise und springt nach dem Buchen zum Projekt.
 // Ausgeliefert ueber hooks.py -> doctype_js. Kein Client Script noetig.

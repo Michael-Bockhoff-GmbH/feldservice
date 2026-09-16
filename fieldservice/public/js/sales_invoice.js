@@ -29,7 +29,7 @@
 			var cfg = {};
 			try {
 				var cfg_r = await frappe.call({
-					method: 'feldservice.zeit_projekt.doctype.zeit_projekt_einstellungen.zeit_projekt_einstellungen.get_einstellungen'
+					method: 'fieldservice.zeit_projekt.doctype.zeit_projekt_einstellungen.zeit_projekt_einstellungen.get_einstellungen'
 				});
 				cfg = cfg_r.message || {};
 			} catch (e) { console.error(e); }

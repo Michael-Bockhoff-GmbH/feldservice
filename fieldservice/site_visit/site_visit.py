@@ -32,7 +32,7 @@ def before_submit(doc, method=None):
 	wie das Buchen des Site Visit selbst. Serverseitig, damit kein zweiter
 	Request und damit kein Zeitfenster fuer "has been modified after you have
 	opened it" entsteht (gleiche Begruendung wie
-	feldservice.zeit_projekt.sales_order.before_submit).
+	fieldservice.zeit_projekt.sales_order.before_submit).
 
 	customer/activity_type/sales_order/to_time sind absichtlich nicht mehr
 	reqd im Feld (siehe site_visit.json) - ein Entwurf mit nur laufendem
