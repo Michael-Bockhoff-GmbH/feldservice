@@ -1,3 +1,4 @@
 # Patches werden hier in Ausfuehrungsreihenfolge eingetragen
 fieldservice.patches.add_timesheet_detail_sales_order
 fieldservice.patches.add_home_workspace_shortcuts
+fieldservice.patches.add_po_no_required

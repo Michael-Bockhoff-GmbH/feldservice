@@ -38,7 +38,9 @@ def before_submit(doc, method=None):
 	reqd im Feld (siehe site_visit.json) - ein Entwurf mit nur laufendem
 	Timer (from_time gesetzt, "Start Timer" speichert sofort, siehe
 	site_visit.js) waere sonst gar nicht speicherbar. Deshalb hier explizit
-	vor dem Buchen geprueft."""
+	vor dem Buchen geprueft. Statt eines vorhandenen Auftrags reicht auch
+	die angehakte "Create Sales Order" - siehe _create_sales_order unten,
+	die den Auftrag dann an dieser Stelle automatisch anlegt."""
 	if doc.timesheet:
 		return
 
@@ -46,8 +48,8 @@ def before_submit(doc, method=None):
 		frappe.throw(_("Please select a Customer before submitting."))
 	if not doc.activity_type:
 		frappe.throw(_("Please select an Activity Type before submitting."))
-	if not doc.sales_order:
-		frappe.throw(_("Please select a Sales Order before submitting."))
+	if not doc.sales_order and not doc.create_sales_order:
+		frappe.throw(_('Please select a Sales Order, or check "Create Sales Order", before submitting.'))
 	if not doc.to_time:
 		frappe.throw(_("Please enter an end time before submitting."))
 
@@ -57,6 +59,9 @@ def before_submit(doc, method=None):
 	_validate_signature(doc)
 
 	segments = _get_work_segments(doc)
+
+	if not doc.sales_order:
+		_create_sales_order(doc, segments)
 
 	ts = frappe.get_doc(
 		{
@@ -168,7 +173,7 @@ def _sync_sales_order(doc):
 	Fahrtkosten-Position in den verknuepften Auftrag uebernehmen - im selben
 	Request wie das Buchen, aus demselben Grund wie die Timesheet-Erstellung
 	oben. Bereits mit added_to_order=1 markierte Zusatzartikel-Zeilen wurden
-	schon ueber create_sales_order() unten in einen neu angelegten Auftrag
+	schon ueber _create_sales_order() unten in einen neu angelegten Auftrag
 	aufgenommen und werden hier uebersprungen.
 
 	Nutzt erpnext.controllers.accounts_controller.update_child_qty_rate -
@@ -262,40 +267,84 @@ def item_query_hardware(doctype, txt, searchfield, start, page_len, filters):
 	return item_query(doctype, txt, searchfield, start, page_len, filters)
 
 
-@frappe.whitelist()
-def create_sales_order(customer, company, po_no=None, project=None, items=None):
-	"""Fuer den "Neuer Auftrag"-Dialog im Site-Visit-Formular: legt einen
-	Auftrag (Entwurf) mit den bereits eingetragenen Zusatzartikeln an, wenn
-	fuer den Kunden noch keiner existiert. Laesst den Auftrag als Entwurf -
-	Buchen bleibt Sache des Vertriebs, nicht des Technikers vor Ort."""
-	if not frappe.has_permission("Site Visit", "write"):
-		frappe.throw(_("Not permitted"), frappe.PermissionError)
+def _create_sales_order(doc, segments):
+	"""Legt automatisch einen neuen Auftrag an und verknuepft ihn (doc.
+	sales_order), wenn "Create Sales Order" angehakt ist - statt wie zuvor
+	ueber einen eigenen "New Sales Order"-Dialog im Formular, ausgeloest
+	durch einen Klick des Technikers. Laesst den Auftrag als Entwurf -
+	Buchen bleibt weiterhin Sache des Vertriebs.
 
-	items = frappe.parse_json(items) if isinstance(items, str) else (items or [])
-	if not items:
-		frappe.throw(_("Add at least one item before creating a new Sales Order."))
+	Uebernimmt dabei gleich zwei Arten von Positionen:
+	- die gearbeitete Zeit (_get_time_item), als Dienstleistungsartikel der
+	  Aktivitaetsart
+	- alle noch nicht uebernommenen Zusatzartikel (extra_items) - dieselben
+	  Zeilen, die _sync_sales_order() sonst nachtraeglich in einen bereits
+	  vorhandenen Auftrag einpflegen wuerde. Hier stecken sie gleich im neu
+	  angelegten Auftrag, deshalb werden sie unten sofort als
+	  added_to_order markiert, damit _sync_sales_order() sie nicht ein
+	  zweites Mal hinzufuegt."""
+	pending = [row for row in doc.extra_items if not row.added_to_order]
 
 	so = frappe.new_doc("Sales Order")
-	so.customer = customer
-	so.company = company
-	so.project = project or None
-	so.po_no = po_no or None
-	for row in items:
-		so.append(
-			"items",
-			{
-				"item_code": row.get("item_code"),
-				"qty": row.get("qty") or 1,
-				"uom": row.get("uom"),
-				"rate": row.get("rate"),
-			},
-		)
+	so.customer = doc.customer
+	so.company = doc.company
+	so.project = doc.project or None
+	so.po_no = doc.customer_reference
+	so.append("items", _get_time_item(doc, segments))
+	for row in pending:
+		so.append("items", {"item_code": row.item_code, "qty": row.qty, "uom": row.uom, "rate": row.rate})
 
 	with _as_administrator():
 		so.set_missing_values()
 		so.insert()
 
-	return so.name
+	doc.sales_order = so.name
+	for row in pending:
+		row.added_to_order = 1
+
+	frappe.msgprint(
+		_("Sales Order {0} created and linked.").format(f"<b>{so.name}</b>"),
+		indicator="green",
+		alert=True,
+	)
+
+
+def _get_time_item(doc, segments):
+	"""Dienstleistungsartikel-Position fuer die gearbeitete Zeit (siehe
+	_create_sales_order) - Menge in Stunden aus den bereits um Pausen
+	bereinigten Arbeitsabschnitten (segments, siehe _get_work_segments).
+	Preisfindung wie beim Rechnungsimport in
+	zeit_projekt/public/js/sales_invoice.js: zuerst der Verkaufspreis des
+	Artikels, sonst der Standard-Stundensatz der Aktivitaetsart. Ohne
+	konfigurierten Dienstleistungsartikel oder ohne ermittelbaren Preis
+	wird abgebrochen, statt eine Position ohne (oder mit falschem) Preis
+	anzulegen."""
+	activity_type = frappe.get_cached_doc("Activity Type", doc.activity_type)
+	if not activity_type.custom_dienstleistungsartikel:
+		frappe.throw(
+			_(
+				"Activity Type {0} has no Dienstleistungsartikel configured - required to create a "
+				"Sales Order automatically."
+			).format(doc.activity_type)
+		)
+
+	hours = sum((segment_to - segment_from).total_seconds() for segment_from, segment_to in segments) / 3600
+
+	item = frappe.get_cached_doc("Item", activity_type.custom_dienstleistungsartikel)
+	price_list = frappe.db.get_single_value("Selling Settings", "selling_price_list")
+
+	from erpnext.stock.get_item_details import get_item_price
+
+	prices = get_item_price({"price_list": price_list, "uom": item.stock_uom}, item.name)
+	rate = prices[0]["price_list_rate"] if prices else activity_type.billing_rate
+	if not rate:
+		frappe.throw(
+			_("No price found for {0}, and Activity Type {1} has no Default Billing Rate set.").format(
+				item.name, doc.activity_type
+			)
+		)
+
+	return {"item_code": item.name, "qty": round(hours, 2), "uom": item.stock_uom, "rate": rate}
 
 
 def on_cancel(doc, method=None):

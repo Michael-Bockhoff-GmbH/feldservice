@@ -83,9 +83,6 @@ frappe.ui.form.on('Site Visit', {
 				frappe.set_route('Form', 'Timesheet', frm.doc.timesheet);
 			});
 		}
-		if (frm.doc.docstatus === 0 && !frm.doc.sales_order) {
-			frm.add_custom_button(__('New Sales Order'), () => show_create_sales_order_dialog(frm));
-		}
 		if (frm.doc.docstatus === 0 && !frm.is_new() && frm.doc.customer) {
 			frm.add_custom_button(__('Calculate Mileage'), () => calculate_mileage(frm));
 		}
@@ -313,7 +310,7 @@ function format_duration(total_ms) {
 
 // Betrag in der Zusatzartikel-Tabelle ist reine Anzeige (qty * rate) - der
 // verknuepfte Auftrag rechnet beim Uebernehmen selbst neu (Steuern,
-// Preisregeln usw., siehe site_visit.py -> _sync_extra_items_to_sales_order).
+// Preisregeln usw., siehe site_visit.py -> _sync_sales_order/_create_sales_order).
 frappe.ui.form.on('Site Visit Item', {
 	qty(frm, cdt, cdn) {
 		update_extra_item_amount(cdt, cdn);
@@ -328,54 +325,6 @@ function update_extra_item_amount(cdt, cdn) {
 	const qty = Number(row.qty) || 0;
 	const rate = Number(row.rate) || 0;
 	frappe.model.set_value(cdt, cdn, 'amount', qty * rate);
-}
-
-function show_create_sales_order_dialog(frm) {
-	if (!frm.doc.customer) {
-		frappe.msgprint(__('Please select a Customer first.'));
-		return;
-	}
-	if (!(frm.doc.extra_items || []).length) {
-		frappe.msgprint(__('Add at least one item below before creating a new Sales Order.'));
-		return;
-	}
-	const dialog = new frappe.ui.Dialog({
-		title: __('New Sales Order'),
-		fields: [{ fieldname: 'po_no', fieldtype: 'Data', label: __('Customer Reference') }],
-		primary_action_label: __('Create'),
-		primary_action(values) {
-			frappe.call({
-				method: 'fieldservice.site_visit.site_visit.create_sales_order',
-				args: {
-					customer: frm.doc.customer,
-					company: frm.doc.company,
-					project: frm.doc.project,
-					po_no: values.po_no,
-					items: frm.doc.extra_items.map((row) => ({
-						item_code: row.item_code,
-						qty: row.qty,
-						uom: row.uom,
-						rate: row.rate,
-					})),
-				},
-				freeze: true,
-				freeze_message: __('Creating Sales Order...'),
-				callback(r) {
-					if (!r.message) return;
-					dialog.hide();
-					frm.set_value('sales_order', r.message).then(() => {
-						// Diese Zeilen stecken schon im neuen Auftrag - beim
-						// Buchen nicht nochmal uebernehmen (added_to_order,
-						// siehe site_visit.py -> _sync_extra_items_to_sales_order).
-						(frm.doc.extra_items || []).forEach((row) => {
-							frappe.model.set_value(row.doctype, row.name, 'added_to_order', 1);
-						});
-					});
-				},
-			});
-		},
-	});
-	dialog.show();
 }
 
 function fill_from_project(frm) {

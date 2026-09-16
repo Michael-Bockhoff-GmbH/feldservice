@@ -12,6 +12,8 @@
   "column_break_1",
   "project",
   "sales_order",
+  "create_sales_order",
+  "customer_reference",
   "section_break_schedule",
   "scheduled_start",
   "column_break_schedule",
@@ -81,11 +83,27 @@
    "options": "Project"
   },
   {
-   "description": "Must be set before submitting - not required yet when saving as a draft (e.g. via the timer). If there isn't one yet, use \"+ New Sales Order\" right in this field.",
+   "description": "Must be set before submitting - not required yet when saving as a draft (e.g. via the timer). If there isn't one yet, check \"Create Sales Order\" below instead of picking one here.",
    "fieldname": "sales_order",
    "fieldtype": "Link",
    "label": "Sales Order",
    "options": "Sales Order"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:!doc.sales_order",
+   "description": "Creates and links a new Sales Order when this Site Visit is submitted, with the worked time (as the Activity Type's Dienstleistungsartikel) and any Additional Items as positions - instead of picking an existing Sales Order above.",
+   "fieldname": "create_sales_order",
+   "fieldtype": "Check",
+   "label": "Create Sales Order"
+  },
+  {
+   "depends_on": "eval:doc.create_sales_order",
+   "description": "Used as the new Sales Order's Customer's Purchase Order reference (po_no).",
+   "fieldname": "customer_reference",
+   "fieldtype": "Data",
+   "label": "Customer Reference",
+   "mandatory_depends_on": "eval:doc.create_sales_order"
   },
   {
    "fieldname": "section_break_schedule",

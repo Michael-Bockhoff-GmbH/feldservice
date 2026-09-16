@@ -92,6 +92,16 @@ HOME_SHORTCUTS = [
 	{"label": "Zeit Projekt Einstellungen", "type": "DocType", "link_to": "Zeit Projekt Einstellungen", "color": "Green"},
 ]
 
+# ---------------------------------------------------------------------------
+# Customer Reference (Sales Order.po_no) verpflichtend machen
+#
+# Gilt fuer JEDEN Auftrag in ERPNext, nicht nur fuer ueber Site Visit
+# automatisch angelegte - eine bewusste Geschaeftsentscheidung, siehe
+# README.md "Auftrag". Ueber eine Property Setter statt eines Custom
+# Field, da po_no bereits ein Kernfeld von Sales Order ist - hier wird nur
+# dessen "reqd"-Eigenschaft veraendert.
+# ---------------------------------------------------------------------------
+
 
 def after_install():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
@@ -100,6 +110,7 @@ def after_install():
 
 	_pdf_on_submit_enable()
 	_home_workspace_enable()
+	_po_no_required_enable()
 
 
 def before_uninstall():
@@ -126,6 +137,7 @@ def before_uninstall():
 
 	_pdf_on_submit_disable()
 	_home_workspace_disable()
+	_po_no_required_disable()
 
 
 def _deaktiviere_alte_client_scripts():
@@ -242,3 +254,30 @@ def _home_workspace_disable():
 
 	home.save(ignore_permissions=True)
 	click.secho("IT Support mit Außendienst: Verknuepfungen von der Home-Seite entfernt.", fg="yellow")
+
+
+def _po_no_required_enable():
+	"""Macht "Customer Reference" (Sales Order.po_no) fuer jeden Auftrag in
+	ERPNext verpflichtend - ueberspringt, falls dafuer bereits irgendeine
+	Property Setter existiert (eigene von einer frueheren Installation,
+	oder eine manuell ueber "Customize Form" angelegte)."""
+	if frappe.db.exists("Property Setter", {"doc_type": "Sales Order", "field_name": "po_no", "property": "reqd"}):
+		return
+
+	frappe.make_property_setter(
+		{"doctype": "Sales Order", "fieldname": "po_no", "property": "reqd", "value": "1", "property_type": "Check"},
+		module=ZEIT_PROJEKT_MODULE,
+	)
+	click.secho("Zeit & Projekt: Customer Reference (po_no) ist jetzt fuer jeden Auftrag Pflicht.", fg="green")
+
+
+def _po_no_required_disable():
+	name = frappe.db.get_value(
+		"Property Setter",
+		{"doc_type": "Sales Order", "field_name": "po_no", "property": "reqd", "module": ZEIT_PROJEKT_MODULE},
+	)
+	if not name:
+		return
+
+	frappe.delete_doc("Property Setter", name, ignore_missing=True)
+	click.secho("Zeit & Projekt: Customer Reference (po_no) ist wieder optional.", fg="yellow")

@@ -169,8 +169,9 @@ bench --site <deine-site> uninstall-app fieldservice
 
 - die Doctype "Site Visit" und ihre Kindtabellen ("Site Visit Photo",
   "Site Visit Item", "Site Visit Break")
-- die Doctype "Zeit Projekt Einstellungen" und die drei Custom Fields von
-  "Zeit Projekt" (`before_uninstall`)
+- die Doctype "Zeit Projekt Einstellungen", die vier Custom Fields von
+  "Zeit Projekt" (`before_uninstall`) und die Property Setter, die
+  Customer Reference (Sales Order.po_no) verpflichtend macht
 - beide Module ("Site Visit", "Zeit Projekt") und alles, was daran hängt
 - die Formular-Skripte, da sie reiner Code sind
 - die Zeile `Site Visit` in `PDF on Submit Settings` (nur falls
@@ -273,17 +274,35 @@ ihr Label, siehe `HOME_SHORTCUTS` in `install.py`).
 
 ## Auftrag
 
-`sales_order` ist bei Site Visit Pflicht – jeder Einsatz muss einem Auftrag
-zugeordnet sein, da darüber (und über das automatisch erzeugte Timesheet)
-abgerechnet wird. Gibt es noch keinen passenden Auftrag, öffnet der Button
-**"New Sales Order"** im Formular (sichtbar, solange kein Auftrag verknüpft
-ist) einen Dialog: Kunde/Firma/Projekt kommen vom Site Visit, dazu lässt
-sich die **Kundenreferenz** (Feld `po_no`, wie beim normalen Anlegen eines
-Auftrags) eintragen. Der neue Auftrag entsteht als **Entwurf** – Buchen
-bleibt Sache des Vertriebs, nicht des Technikers vor Ort – und übernimmt die
-bereits eingetragenen Zusatzartikel (siehe unten) als Startpositionen; dafür
-muss mindestens eine Zeile in "Additional Items" stehen, da ein Auftrag ohne
-Position nicht anlegbar ist.
+Jeder Einsatz muss einem Auftrag zugeordnet sein, da darüber (und über das
+automatisch erzeugte Timesheet) abgerechnet wird – entweder ein bereits
+bestehender (Feld `sales_order`), oder ein neuer, automatisch beim Buchen
+angelegter. Gibt es noch keinen passenden Auftrag, **"Create Sales
+Order"** ankreuzen (Checkbox, sichtbar solange kein Auftrag ausgewählt
+ist) – dabei erscheint das Feld **Customer Reference**, das dann Pflicht
+wird (Kunde/Firma/Projekt kommen vom Site Visit selbst). Der neue Auftrag
+entsteht beim Buchen als **Entwurf** – Buchen des Auftrags selbst bleibt
+Sache des Vertriebs, nicht des Technikers vor Ort – und übernimmt dabei
+automatisch zwei Arten von Positionen (`_create_sales_order` in
+`site_visit/site_visit.py`):
+
+1. die **gearbeitete Zeit** als Position mit dem Dienstleistungsartikel der
+   Aktivitätsart (`custom_dienstleistungsartikel`, aus Zeit Projekt) –
+   Menge = Arbeitsstunden (ohne Pausen, siehe "Timer" unten), Preis wie
+   beim Rechnungsimport: zuerst der Verkaufspreis des Artikels, sonst der
+   Standard-Stundensatz der Aktivitätsart. Fehlt beides, bricht das Buchen
+   mit einer klaren Fehlermeldung ab, statt eine Position ohne (oder mit
+   falschem) Preis anzulegen.
+2. alle bereits eingetragenen **Zusätzlichen Artikel** (siehe unten) –
+   anders als früher ist dafür keine Mindestanzahl an Zeilen mehr nötig, da
+   die Zeit-Position ohnehin immer mindestens eine Position liefert.
+
+**Customer Reference** (`po_no` am Auftrag) ist außerdem **für jeden
+Auftrag in ERPNext verpflichtend** – nicht nur für automatisch über Site
+Visit angelegte, sondern generell, auch bei manuell angelegten Aufträgen.
+Umgesetzt über eine Property Setter (`_po_no_required_enable`/
+`_po_no_required_disable` in `install.py`), nicht über ein Custom Field, da
+`po_no` bereits ein Kernfeld von Sales Order ist.
 
 Hat das gewählte Projekt **mehrere** offene Aufträge, wählt `fill_from_project`
 in `site_visit.js` nicht mehr automatisch (das ging bisher nur bei genau
