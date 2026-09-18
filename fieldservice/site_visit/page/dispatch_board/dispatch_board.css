@@ -2,15 +2,27 @@
 	padding: 15px;
 }
 
+/* Tag-/Wochenansicht: fester Pixelraster (siehe PX_PER_HOUR in
+   dispatch_board.js) statt prozentualer Breite - damit ist die volle
+   24-Stunden-Achse immer gleich lesbar, unabhaengig von der
+   Bildschirmbreite, und laesst sich bei Bedarf horizontal durchscrollen
+   (frueher auf 07:00-19:00 zusammengequetscht, ohne Moeglichkeit, frueher/
+   spaeter geplante Termine ueberhaupt zu sehen). */
+.dispatch-board-body-timeline {
+	overflow-x: auto;
+	padding: 15px 0;
+}
+
 .dispatch-board-grid {
+	position: relative;
 	border: 1px solid var(--border-color);
 	border-radius: var(--border-radius-md);
-	overflow: hidden;
 }
 
 .dispatch-row {
 	display: flex;
 	border-bottom: 1px solid var(--border-color);
+	position: relative;
 }
 
 .dispatch-row:last-child {
@@ -24,11 +36,14 @@
 	font-weight: 500;
 	background: var(--fg-color);
 	border-right: 1px solid var(--border-color);
+	position: sticky;
+	left: 0;
+	z-index: 2;
 }
 
 .dispatch-row-track {
 	position: relative;
-	flex-grow: 1;
+	flex-shrink: 0;
 	min-height: 44px;
 	cursor: pointer;
 }
@@ -38,16 +53,46 @@
 }
 
 .dispatch-ruler .dispatch-row-track {
-	min-height: 24px;
+	min-height: 22px;
 	cursor: default;
 }
 
-.dispatch-ruler span {
+.dispatch-hour-tick,
+.dispatch-day-label {
 	position: absolute;
 	top: 2px;
-	font-size: 11px;
+	font-size: 10px;
 	color: var(--text-muted);
-	transform: translateX(-4px);
+	white-space: nowrap;
+}
+
+.dispatch-day-label {
+	font-weight: 500;
+	color: var(--text-color);
+}
+
+/* Rasterlinien: eine gemeinsame Ueberlagerung fuer das ganze Raster statt
+   einer Kopie pro Technikerzeile - deutlich weniger DOM-Knoten, und die
+   Linien laufen dadurch automatisch ueber alle Zeilen durch. */
+.dispatch-grid-overlay {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	pointer-events: none;
+	z-index: 0;
+}
+
+.dispatch-gridline {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	border-left: 1px solid var(--border-color);
+	opacity: 0.6;
+}
+
+.dispatch-gridline-day {
+	border-left: 1px solid var(--gray-500);
+	opacity: 1;
 }
 
 .dispatch-block {
@@ -62,6 +107,7 @@
 	white-space: nowrap;
 	text-overflow: ellipsis;
 	cursor: pointer;
+	z-index: 1;
 }
 
 .dispatch-block-draft {
@@ -76,24 +122,6 @@
 	border: 2px solid var(--orange-500);
 }
 
-.dispatch-day-label {
-	position: absolute;
-	top: 2px;
-	font-size: 11px;
-	color: var(--text-muted);
-	text-align: center;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.dispatch-day-divider {
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	border-left: 1px dashed var(--border-color);
-}
-
 .dispatch-drag-selection {
 	position: absolute;
 	top: 4px;
@@ -102,8 +130,11 @@
 	border: 1px dashed var(--blue-500);
 	border-radius: var(--border-radius-sm);
 	pointer-events: none;
+	z-index: 1;
 }
 
+/* Monatsansicht: bleibt prozentual/flex - kein Zeitraster, passt ohne
+   Scrollen auf den Bildschirm. */
 .dispatch-month-grid .dispatch-row-label {
 	min-height: 30px;
 }

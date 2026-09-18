@@ -10,9 +10,22 @@
 // per Ziehen in der Tagesansicht anzulegen ist dagegen einfach genug (kein
 // Server-Zustand, der sich beim Ziehen selbst aendern koennte) und spart
 // gegenueber Klicken+Zeit-Eintippen einen Schritt.
+//
+// WICHTIG: frappe.datetime.add_days()/add_months() liefern ueber
+// moment(...).format() (ohne Formatangabe) einen vollen ISO-String MIT
+// Zeitzonen-Offset zurueck (z. B. "2026-09-19T00:00:00+02:00"), keinen
+// reinen "YYYY-MM-DD"-String - anders als frappe.datetime.get_today(),
+// das ueber frappe.defaultDateFormat sauber formatiert. Wird so ein
+// Offset-String spaeter wieder ueber str_to_obj() (erwartet "YYYY-MM-DD
+// HH:mm:ss") eingelesen, verschiebt sich die Uhrzeit sichtbar - das war
+// die Ursache eines Zeitzonen-Bugs hier. Deshalb unten eine eigene,
+// reine add_days()/format_date() ohne moment().format()-Umweg.
 
-const DAY_START_HOUR = 7;
-const DAY_END_HOUR = 19;
+const PX_PER_HOUR = 60;
+const HOURS_IN_DAY = 24;
+const DAY_WIDTH = HOURS_IN_DAY * PX_PER_HOUR;
+const LABEL_WIDTH = 160;
+const DEFAULT_SCROLL_HOUR = 7;
 const VIEW_MODES = ['Day', 'Work Week', 'Week', 'Month'];
 const DRAG_SNAP_MINUTES = 15;
 
@@ -75,10 +88,13 @@ frappe.pages['dispatch-board'].on_page_load = function (wrapper) {
 	};
 };
 
-function shift_date(date, view, direction) {
-	if (view === 'Work Week' || view === 'Week') return frappe.datetime.add_days(date, direction * 7);
-	if (view === 'Month') return add_months(date, direction);
-	return frappe.datetime.add_days(date, direction);
+// --- Datum: bewusst ohne frappe.datetime.add_days()/add_months(), siehe
+// Kommentar oben am Dateianfang. -----------------------------------------
+
+function add_days(date_str, days) {
+	const d = frappe.datetime.str_to_obj(date_str);
+	d.setDate(d.getDate() + days);
+	return format_date(d);
 }
 
 function add_months(date_str, months) {
@@ -95,6 +111,12 @@ function format_date(date_obj) {
 	return `${y}-${m}-${d}`;
 }
 
+function shift_date(date, view, direction) {
+	if (view === 'Work Week' || view === 'Week') return add_days(date, direction * 7);
+	if (view === 'Month') return add_months(date, direction);
+	return add_days(date, direction);
+}
+
 // Montag als Wochenstart (uebliche Konvention hierzulande).
 function get_days_for_range(state) {
 	if (state.view === 'Day') {
@@ -104,23 +126,22 @@ function get_days_for_range(state) {
 	if (state.view === 'Work Week' || state.view === 'Week') {
 		const d = frappe.datetime.str_to_obj(state.date);
 		const days_since_monday = (d.getDay() + 6) % 7;
-		const monday = frappe.datetime.add_days(state.date, -days_since_monday);
+		const monday = add_days(state.date, -days_since_monday);
 		const span = state.view === 'Work Week' ? 5 : 7;
 		const days = [];
-		for (let i = 0; i < span; i++) days.push(frappe.datetime.add_days(monday, i));
+		for (let i = 0; i < span; i++) days.push(add_days(monday, i));
 		return days;
 	}
 
 	// Month
 	const d = frappe.datetime.str_to_obj(state.date);
 	const first = new Date(d.getFullYear(), d.getMonth(), 1);
-	const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+	const last_str = format_date(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 	const days = [];
 	let cursor = format_date(first);
-	const last_str = format_date(last);
 	while (cursor <= last_str) {
 		days.push(cursor);
-		cursor = frappe.datetime.add_days(cursor, 1);
+		cursor = add_days(cursor, 1);
 	}
 	return days;
 }
@@ -137,14 +158,22 @@ function render(page, state) {
 		callback(r) {
 			const data = r.message || { technicians: [], visits: [] };
 			if (state.view === 'Month') {
+				$body.removeClass('dispatch-board-body-timeline');
 				$body.html(build_month_html(data, days));
 				wire_month_clicks($body, page);
 			} else {
+				$body.addClass('dispatch-board-body-timeline');
 				$body.html(build_timeline_html(data, days));
 				wire_timeline_clicks($body, page, days, state.view === 'Day');
+				scroll_to_default_hour(page);
 			}
 		},
 	});
+}
+
+function scroll_to_default_hour(page) {
+	const $scroll = page.main.find('.dispatch-board-body');
+	$scroll.scrollLeft(Math.max(DEFAULT_SCROLL_HOUR * PX_PER_HOUR - 40, 0));
 }
 
 // --- Tag/Arbeitswoche/Woche: gemeinsame Zeitachsen-Darstellung ---------
@@ -154,6 +183,8 @@ function build_timeline_html(data, days) {
 		return `<div class="text-muted padding">${__('No active technicians found.')}</div>`;
 	}
 
+	const track_width = days.length * DAY_WIDTH;
+
 	const visits_by_employee = {};
 	(data.visits || []).forEach((v) => {
 		(visits_by_employee[v.employee] = visits_by_employee[v.employee] || []).push(v);
@@ -161,69 +192,88 @@ function build_timeline_html(data, days) {
 
 	const rows = data.technicians
 		.map((tech) => {
-			const blocks = (visits_by_employee[tech.name] || [])
-				.map((v) => render_block(v, days))
-				.join('');
+			const blocks = (visits_by_employee[tech.name] || []).map((v) => render_block(v, days)).join('');
 			return `
 				<div class="dispatch-row">
 					<div class="dispatch-row-label">${frappe.utils.escape_html(tech.employee_name)}</div>
-					<div class="dispatch-row-track" data-employee="${tech.name}">${render_day_dividers(days)}${blocks}</div>
+					<div class="dispatch-row-track" data-employee="${tech.name}" style="width:${track_width}px">${blocks}</div>
 				</div>`;
 		})
 		.join('');
 
-	return `<div class="dispatch-board-grid">${render_ruler(days)}${rows}</div>`;
+	return `
+		<div class="dispatch-board-grid" style="width:${LABEL_WIDTH + track_width}px">
+			<div class="dispatch-grid-overlay" style="left:${LABEL_WIDTH}px;width:${track_width}px">${render_gridlines(days)}</div>
+			${render_ruler(days)}
+			${rows}
+		</div>`;
 }
 
-function render_ruler(days) {
-	const day_width = 100 / days.length;
-	if (days.length === 1) {
-		const hours = [];
-		for (let h = DAY_START_HOUR; h <= DAY_END_HOUR; h++) {
-			hours.push(`<span style="left:${hour_to_percent(h)}%">${String(h).padStart(2, '0')}:00</span>`);
-		}
-		return `<div class="dispatch-row dispatch-ruler"><div class="dispatch-row-label"></div><div class="dispatch-row-track">${hours.join('')}</div></div>`;
-	}
-
-	const labels = days
-		.map((day, i) => {
-			const label = frappe.datetime.str_to_obj(day).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-			return `<span style="left:${i * day_width}%;width:${day_width}%" class="dispatch-day-label">${label}</span>`;
-		})
-		.join('');
-	return `<div class="dispatch-row dispatch-ruler"><div class="dispatch-row-label"></div><div class="dispatch-row-track">${labels}</div></div>`;
-}
-
-function render_day_dividers(days) {
-	if (days.length <= 1) return '';
-	const day_width = 100 / days.length;
+function render_gridlines(days) {
 	let html = '';
-	for (let i = 1; i < days.length; i++) {
-		html += `<div class="dispatch-day-divider" style="left:${i * day_width}%"></div>`;
+	const total_hours = days.length * HOURS_IN_DAY;
+	for (let h = 0; h <= total_hours; h++) {
+		const is_day_boundary = h % HOURS_IN_DAY === 0;
+		html += `<div class="dispatch-gridline${is_day_boundary ? ' dispatch-gridline-day' : ''}" style="left:${h * PX_PER_HOUR}px"></div>`;
 	}
 	return html;
 }
 
+function render_ruler(days) {
+	const hour_ticks = [];
+	days.forEach((day, day_index) => {
+		for (let h = 0; h < HOURS_IN_DAY; h++) {
+			const left = day_index * DAY_WIDTH + h * PX_PER_HOUR;
+			hour_ticks.push(`<span class="dispatch-hour-tick" style="left:${left}px">${String(h).padStart(2, '0')}:00</span>`);
+		}
+	});
+
+	let day_header_row = '';
+	if (days.length > 1) {
+		const headers = days
+			.map((day, i) => {
+				const label = frappe.datetime
+					.str_to_obj(day)
+					.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+				return `<span class="dispatch-day-label" style="left:${i * DAY_WIDTH}px;width:${DAY_WIDTH}px">${label}</span>`;
+			})
+			.join('');
+		day_header_row = `<div class="dispatch-row dispatch-ruler"><div class="dispatch-row-label"></div><div class="dispatch-row-track">${headers}</div></div>`;
+	}
+
+	return `
+		${day_header_row}
+		<div class="dispatch-row dispatch-ruler">
+			<div class="dispatch-row-label"></div>
+			<div class="dispatch-row-track">${hour_ticks.join('')}</div>
+		</div>`;
+}
+
 function render_block(visit, days) {
-	const day_width = 100 / days.length;
 	const day_index = days.indexOf((visit.scheduled_start || '').slice(0, 10));
 	if (day_index === -1) return ''; // ueber Mitternacht hinausreichende Termine werden hier nicht dargestellt
 
-	const start_f = time_to_fraction(visit.scheduled_start);
-	const end_f = time_to_fraction(visit.scheduled_end);
-	const left = day_index * day_width + start_f * day_width;
-	const width = Math.max((end_f - start_f) * day_width, days.length > 1 ? 1 : 2);
+	const start_px = day_index * DAY_WIDTH + time_to_px(visit.scheduled_start);
+	const end_px = day_index * DAY_WIDTH + time_to_px(visit.scheduled_end);
+	const width = Math.max(end_px - start_px, 8);
 	const status_class = visit.docstatus === 1 ? 'dispatch-block-submitted' : 'dispatch-block-draft';
 	const conflict_class = visit.has_conflict ? 'dispatch-block-conflict' : '';
 	const time_label = frappe.datetime.str_to_user(visit.scheduled_start).split(' ')[1] || '';
 	const label = `${visit.customer_name || visit.customer || ''} (${time_label})`;
 	return `
 		<div class="dispatch-block ${status_class} ${conflict_class}"
-			style="left:${left}%;width:${width}%"
+			style="left:${start_px}px;width:${width}px"
 			data-name="${visit.name}"
 			title="${frappe.utils.escape_html(label)}">
 			${frappe.utils.escape_html(visit.customer_name || visit.customer || visit.name)}
 		</div>`;
+}
+
+function time_to_px(datetime_str) {
+	if (!datetime_str) return 0;
+	const dt = frappe.datetime.str_to_obj(datetime_str);
+	const hour = dt.getHours() + dt.getMinutes() / 60;
+	return hour * PX_PER_HOUR;
 }
 
 function wire_timeline_clicks($body, page, days, allow_drag_create) {
@@ -242,10 +292,9 @@ function wire_timeline_clicks($body, page, days, allow_drag_create) {
 			if ($(e.target).closest('.dispatch-block').length) return;
 			const employee = $(this).data('employee');
 			const x = e.pageX - $(this).offset().left;
-			const day_position = (x / $(this).width()) * days.length; // 0..days.length
-			const day_index = Math.min(Math.max(Math.floor(day_position), 0), days.length - 1);
-			const fraction_within_day = day_position - day_index; // 0..1
-			const hour = snap_hour(DAY_START_HOUR + fraction_within_day * (DAY_END_HOUR - DAY_START_HOUR));
+			const day_index = Math.min(Math.max(Math.floor(x / DAY_WIDTH), 0), days.length - 1);
+			const x_within_day = x - day_index * DAY_WIDTH;
+			const hour = snap_hour(clamp(x_within_day, 0, DAY_WIDTH) / PX_PER_HOUR);
 			create_new_visit(employee, days[day_index], hour, hour + 1);
 		});
 		return;
@@ -269,7 +318,7 @@ function wire_timeline_clicks($body, page, days, allow_drag_create) {
 
 		function on_move(e) {
 			if (!dragging) return;
-			const current_x = clamp(x_from_event(e), 0, $track.width());
+			const current_x = clamp(x_from_event(e), 0, DAY_WIDTH);
 			$selection.css({ left: Math.min(start_x, current_x), width: Math.abs(current_x - start_x) });
 		}
 
@@ -278,10 +327,9 @@ function wire_timeline_clicks($body, page, days, allow_drag_create) {
 			dragging = false;
 			$(document).off('mousemove.dispatch-drag', on_move).off('mouseup.dispatch-drag', on_up);
 
-			const end_x = clamp(x_from_event(e), 0, $track.width());
-			const track_width = $track.width();
-			const from_hour = snap_hour(x_to_hour(Math.min(start_x, end_x), track_width));
-			let to_hour = snap_hour(x_to_hour(Math.max(start_x, end_x), track_width));
+			const end_x = clamp(x_from_event(e), 0, DAY_WIDTH);
+			const from_hour = snap_hour(Math.min(start_x, end_x) / PX_PER_HOUR);
+			let to_hour = snap_hour(Math.max(start_x, end_x) / PX_PER_HOUR);
 			if (to_hour - from_hour < 0.25) to_hour = from_hour + 1; // reiner Klick -> 1h Standarddauer
 			if ($selection) $selection.remove();
 			create_new_visit(employee, days[0], from_hour, to_hour);
@@ -290,7 +338,7 @@ function wire_timeline_clicks($body, page, days, allow_drag_create) {
 		$track.on('mousedown', function (e) {
 			if ($(e.target).closest('.dispatch-block').length) return;
 			dragging = true;
-			start_x = x_from_event(e);
+			start_x = clamp(x_from_event(e), 0, DAY_WIDTH);
 			$selection = $('<div class="dispatch-drag-selection"></div>').appendTo($track);
 			$selection.css({ left: start_x, width: 0 });
 			$(document).on('mousemove.dispatch-drag', on_move).on('mouseup.dispatch-drag', on_up);
@@ -301,11 +349,6 @@ function wire_timeline_clicks($body, page, days, allow_drag_create) {
 
 function clamp(value, min, max) {
 	return Math.min(Math.max(value, min), max);
-}
-
-function x_to_hour(x, track_width) {
-	const fraction = track_width ? x / track_width : 0;
-	return DAY_START_HOUR + fraction * (DAY_END_HOUR - DAY_START_HOUR);
 }
 
 function snap_hour(hour) {
@@ -324,17 +367,6 @@ function create_new_visit(employee, day, from_hour, to_hour) {
 		scheduled_start: to_time_str(from_hour),
 		scheduled_end: to_time_str(to_hour),
 	});
-}
-
-function hour_to_percent(hour) {
-	return ((hour - DAY_START_HOUR) / (DAY_END_HOUR - DAY_START_HOUR)) * 100;
-}
-
-function time_to_fraction(datetime_str) {
-	if (!datetime_str) return 0;
-	const dt = frappe.datetime.str_to_obj(datetime_str);
-	const hour = dt.getHours() + dt.getMinutes() / 60;
-	return Math.min(Math.max(hour_to_percent(hour) / 100, 0), 1);
 }
 
 // --- Monatsansicht: pro Tag nur ein Zaehl-Badge, keine Zeitachse -------

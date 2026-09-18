@@ -567,7 +567,13 @@ anderer.
 Über die Ansicht-Auswahl oben lässt sich zwischen **Day**, **Work Week**
 (Mo–Fr), **Week** (Mo–So) und **Month** wechseln — alle vier fragen
 denselben Endpunkt nur mit unterschiedlichem Zeitraum ab
-(`get_dispatch_board_data(start_date, end_date)`):
+(`get_dispatch_board_data(start_date, end_date)`).
+
+Day/Work Week/Week zeigen die volle 24-Stunden-Achse mit sichtbaren
+Stunden-Rasterlinien (Tagesgrenzen zusätzlich hervorgehoben) in einem
+festen Pixelraster statt auf die Bildschirmbreite gestaucht — dadurch
+horizontal scrollbar, mit Sprung auf 07:00 als Startansicht. Die
+Technikernamen-Spalte bleibt beim Scrollen sichtbar (`position: sticky`).
 
 - **Day**: die Zeitachse wie gehabt, plus **Ziehen zum Anlegen** — bei
   gedrückter Maustaste über die Zeile eines Technikers ziehen spannt den
