@@ -393,6 +393,7 @@ die App-weiten Einstellungen von Site Visit:
 | Bereich | Feld | Bedeutung |
 |---|---|---|
 | Allgemein | Time Zone | Zeitzone des Unternehmens (Standard **Europe/Berlin**, volle IANA-Liste wie in Frappes eigenen System Settings, Sommerzeit automatisch berücksichtigt) — bewusst getrennt von der site-weiten System-Settings-Zeitzone, siehe "## Terminplanung" für den Hintergrund. |
+| Terminplanung | Calendar Tooltip Field | **Project** (Standard) oder **Sales Order** — welches Feld beim Überfahren eines geplanten Termins mit der Maus zusätzlich zur Uhrzeit angezeigt wird, in der Kalenderansicht und im Einsatzplan gleichermaßen. |
 | Kilometer | OpenRouteService API Key | Kostenloser Key von [openrouteservice.org](https://openrouteservice.org) — ohne Key funktioniert "Kilometer berechnen" nicht. Feldtyp **Password**, daher verschlüsselt gespeichert und im Formular maskiert. |
 | Kilometer | Default Start Address | Freitext-Startpunkt, falls der Site Visit selbst keine eigene Startadresse hat. Leer = Standardadresse der Firma. |
 | Kilometer | Mileage Item | Artikel, dessen Verkaufspreis pro Kilometer als Fahrtkosten-Position im Auftrag berechnet wird. Leer = keine automatische Fahrtkosten-Abrechnung. |
@@ -553,6 +554,15 @@ maßgebliche, korrekt vorbelegte Zeitzone, unabhängig von System Settings,
 und der Anker für eine spätere Office-365/Outlook-Anbindung (die für
 Outlooks Kalender-API einen echten Zeitzonennamen braucht). Berücksichtigt
 die Sommerzeit automatisch, wie jeder IANA-Zeitzonenname.
+
+Beim Überfahren eines Termins mit der Maus (Kalenderansicht wie
+Einsatzplan) zeigt ein eigener Tooltip statt des eingebauten Browser-
+Tooltips die korrekte Uhrzeit sowie, je nach **Site Visit Settings →
+Calendar Tooltip Field**, zusätzlich das verknüpfte **Project** (Standard)
+oder den verknüpften **Sales Order** — `eventDidMount` in
+`site_visit_calendar.js` bzw. der `title`-Attribut-Aufbau in
+`dispatch_board.js`, beide gespeist aus `data.tooltip_field`/derselben
+Einstellung.
 
 ### Terminkonflikte
 

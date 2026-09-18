@@ -192,7 +192,7 @@ function build_timeline_html(data, days) {
 
 	const rows = data.technicians
 		.map((tech) => {
-			const blocks = (visits_by_employee[tech.name] || []).map((v) => render_block(v, days)).join('');
+			const blocks = (visits_by_employee[tech.name] || []).map((v) => render_block(v, days, data.tooltip_field)).join('');
 			return `
 				<div class="dispatch-row">
 					<div class="dispatch-row-label">${frappe.utils.escape_html(tech.employee_name)}</div>
@@ -249,7 +249,7 @@ function render_ruler(days) {
 		</div>`;
 }
 
-function render_block(visit, days) {
+function render_block(visit, days, tooltip_field) {
 	const day_index = days.indexOf((visit.scheduled_start || '').slice(0, 10));
 	if (day_index === -1) return ''; // ueber Mitternacht hinausreichende Termine werden hier nicht dargestellt
 
@@ -259,12 +259,16 @@ function render_block(visit, days) {
 	const status_class = visit.docstatus === 1 ? 'dispatch-block-submitted' : 'dispatch-block-draft';
 	const conflict_class = visit.has_conflict ? 'dispatch-block-conflict' : '';
 	const time_label = frappe.datetime.str_to_user(visit.scheduled_start).split(' ')[1] || '';
-	const label = `${visit.customer_name || visit.customer || ''} (${time_label})`;
+	const lines = [`${visit.customer_name || visit.customer || ''} (${time_label})`];
+	const extra_value = tooltip_field === 'Sales Order' ? visit.sales_order : visit.project;
+	if (extra_value) {
+		lines.push(`${tooltip_field === 'Sales Order' ? __('Sales Order') : __('Project')}: ${extra_value}`);
+	}
 	return `
 		<div class="dispatch-block ${status_class} ${conflict_class}"
 			style="left:${start_px}px;width:${width}px"
 			data-name="${visit.name}"
-			title="${frappe.utils.escape_html(label)}">
+			title="${frappe.utils.escape_html(lines.join('\n'))}">
 			${frappe.utils.escape_html(visit.customer_name || visit.customer || visit.name)}
 		</div>`;
 }

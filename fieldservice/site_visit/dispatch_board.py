@@ -28,7 +28,12 @@ def get_dispatch_board_data(start_date, end_date=None, employees=None):
 	Nur fuer Rollen, die ohnehin schon alle Einsaetze aller Mitarbeiter sehen
 	duerfen (siehe Berechtigungen in site_visit.json) - ein Techniker (Rolle
 	"Employee") hat dort nur if_owner-Zugriff und soll hier keinen Ueberblick
-	ueber die Einsaetze anderer Techniker bekommen."""
+	ueber die Einsaetze anderer Techniker bekommen.
+
+	tooltip_field spiegelt Site Visit Settings -> Calendar Tooltip Field
+	(Project/Sales Order) - steuert, welches Zusatzfeld dispatch_board.js im
+	Hover-Tooltip eines Termins anzeigt, genau wie in der Kalenderansicht
+	(site_visit_calendar.js)."""
 	frappe.only_for(("System Manager", "Projects Manager"))
 
 	from frappe.utils import add_to_date, get_datetime
@@ -55,7 +60,17 @@ def get_dispatch_board_data(start_date, end_date=None, employees=None):
 			"scheduled_start": ["<", range_end],
 			"scheduled_end": [">", range_start],
 		},
-		fields=["name", "employee", "customer", "customer_name", "scheduled_start", "scheduled_end", "docstatus"],
+		fields=[
+			"name",
+			"employee",
+			"customer",
+			"customer_name",
+			"scheduled_start",
+			"scheduled_end",
+			"docstatus",
+			"sales_order",
+			"project",
+		],
 		order_by="scheduled_start",
 	)
 
@@ -73,4 +88,5 @@ def get_dispatch_board_data(start_date, end_date=None, employees=None):
 				for other in rows
 			)
 
-	return {"technicians": technicians, "visits": visits}
+	settings = frappe.get_cached_doc("Site Visit Settings")
+	return {"technicians": technicians, "visits": visits, "tooltip_field": settings.calendar_tooltip_field or "Project"}

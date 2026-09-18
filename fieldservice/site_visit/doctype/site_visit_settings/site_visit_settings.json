@@ -6,6 +6,8 @@
  "field_order": [
   "general_section",
   "time_zone",
+  "scheduling_section",
+  "calendar_tooltip_field",
   "mileage_section",
   "ors_api_key",
   "default_start_address",
@@ -30,6 +32,19 @@
    "fieldname": "time_zone",
    "fieldtype": "Select",
    "label": "Time Zone"
+  },
+  {
+   "fieldname": "scheduling_section",
+   "fieldtype": "Section Break",
+   "label": "Scheduling"
+  },
+  {
+   "default": "Project",
+   "description": "Which field to show, alongside the (already correctly local) start/end time, when hovering over a scheduled Site Visit in the Calendar view or the Dispatch Board.",
+   "fieldname": "calendar_tooltip_field",
+   "fieldtype": "Select",
+   "label": "Calendar Tooltip Field",
+   "options": "Project\nSales Order"
   },
   {
    "fieldname": "mileage_section",
