@@ -48,6 +48,33 @@
    "onboard": 0,
    "stats_filter": "[]",
    "type": "Link"
+  },
+  {
+   "color": "Grey",
+   "dependencies": "",
+   "doc_view": "Calendar",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Calendar",
+   "link_count": 0,
+   "link_to": "Site Visit",
+   "link_type": "DocType",
+   "onboard": 0,
+   "stats_filter": "[]",
+   "type": "Link"
+  },
+  {
+   "color": "Grey",
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Dispatch Board",
+   "link_count": 0,
+   "link_to": "dispatch-board",
+   "link_type": "Page",
+   "onboard": 0,
+   "stats_filter": "[]",
+   "type": "Link"
   }
  ],
  "modified": "2026-09-13 09:00:00.000000",

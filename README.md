@@ -267,13 +267,13 @@ Apps-Übersicht (`/apps`), inklusive einer eigenen Workspace mit
 Verknüpfungen zu "Site Visit" und "Timesheet".
 
 Zusätzlich ergänzt `install.py` (`_home_workspace_enable`/
-`_home_workspace_disable`) drei Shortcuts auf ERPNexts Standard-**"Home"**-
-Workspace — **Site Visit**, **Timesheet**, **Zeit Projekt Einstellungen** —
-damit die App auch von der normalen Startseite aus auffindbar ist, ohne
-erst über die Apps-Übersicht zu gehen. Rein additiv: bestehende
-Shortcuts/Karten auf Home bleiben unangetastet, `before_uninstall` entfernt
-beim Deinstallieren exakt diese drei Einträge wieder (identifiziert über
-ihr Label, siehe `HOME_SHORTCUTS` in `install.py`).
+`_home_workspace_disable`) vier Shortcuts auf ERPNexts Standard-**"Home"**-
+Workspace — **Site Visit**, **Timesheet**, **Zeit Projekt Einstellungen**,
+**Dispatch Board** — damit die App auch von der normalen Startseite aus
+auffindbar ist, ohne erst über die Apps-Übersicht zu gehen. Rein additiv:
+bestehende Shortcuts/Karten auf Home bleiben unangetastet, `before_uninstall`
+entfernt beim Deinstallieren exakt diese vier Einträge wieder (identifiziert
+über ihr Label, siehe `HOME_SHORTCUTS` in `install.py`).
 
 ## Auftrag
 
@@ -527,6 +527,52 @@ zunächst nur ein lokaler Kalender innerhalb von ERPNext — für eine spätere
 Anbindung an Office 365/Outlook wären `scheduled_start`/`scheduled_end` die
 Felder, die ein Sync-Job gegen die Microsoft-Graph-API abgleichen müsste;
 das ist noch nicht gebaut.
+
+### Terminkonflikte
+
+Überschneiden sich die geplanten Zeitfenster (`scheduled_start`/
+`scheduled_end`) zweier Site Visits desselben Mitarbeiters, warnt die App
+— blockiert das Speichern aber bewusst nicht, z. B. für einen kurzen
+Telefontermin parallel zu einem laufenden Vor-Ort-Einsatz:
+
+- **Im Formular**: sofort beim Ändern von Employee/Scheduled Start/
+  Scheduled End ein kurzer Hinweis (`check_schedule_conflict` in
+  `site_visit.js`), und nach dem Speichern eine ausführliche Meldung mit
+  den betroffenen Terminen (`warn_schedule_conflicts()` im
+  `validate()`-Hook, `site_visit/doctype/site_visit/site_visit.py` bzw.
+  `site_visit/site_visit.py`) — greift dadurch auch bei API-Zugriffen und
+  Datenimporten, nicht nur im Formular.
+- **Im Einsatzplan** (siehe unten): überlappende Termine sind farblich
+  markiert, mit derselben Prüfung (`_intervals_overlap`/`_find_conflicts`),
+  damit Formular und Einsatzplan nie unterschiedliche Aussagen treffen.
+
+Stornierte Site Visits blockieren keinen Slot mehr; ein Termin, der genau
+dort endet, wo der nächste beginnt, gilt nicht als Konflikt.
+
+### Einsatzplan (Dispatch Board)
+
+Zusätzlich zur (nach Employee/Customer gefilterten) Kalenderansicht gibt es
+unter **Dispatch Board** (Home-Seite, "Site Visits"-Workspace, oder direkt
+`/app/dispatch-board`) einen Überblick über **alle Techniker an einem Tag
+nebeneinander** — eine Zeile pro aktivem Mitarbeiter, die geplanten
+Site Visits als Zeitblöcke auf einer gemeinsamen Zeitachse
+(`site_visit/page/dispatch_board/`, Datenquelle
+`site_visit/dispatch_board.py`). Nur für Rollen sichtbar, die ohnehin schon
+alle Einsätze aller Mitarbeiter sehen dürfen (System Manager, Projects
+Manager) — ein Techniker sieht dort keinen Überblick über die Einsätze
+anderer.
+
+Ein Klick auf einen Termin öffnet ihn, ein Klick auf eine freie Stelle in
+der Zeile eines Technikers legt einen neuen Site Visit mit vorbelegtem
+Mitarbeiter und Startzeit an. **Kein Drag & Drop** zum Verschieben — bei
+einer Handvoll Technikern ist das Öffnen und Ändern zweier Datumsfelder
+(was ohnehin dieselbe Konfliktprüfung auslöst) genauso schnell, ohne den
+Mehraufwand für Touch-Unterstützung und erneute Serverprüfung beim
+Ziehen. Aus demselben Grund keine FullCalendar-Ressourcenansicht (mehrere
+Techniker als Spalten nebeneinander in einer echten Kalenderbibliothek):
+die in diesem Frappe mitgelieferte FullCalendar-Version enthält dafür kein
+Plugin — Ressourcenansichten sind Teil von FullCalendars kommerziell
+lizenziertem Premium-Bundle.
 
 ## Fernarbeit
 

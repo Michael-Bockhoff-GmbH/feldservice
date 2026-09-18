@@ -131,3 +131,7 @@
 "E.g. driving straight on to the next customer afterwards - bills only the one-way distance instead of a round trip (see Site Visit Settings -> Mileage Item).","Z. B. wenn direkt zum naechsten Kunden weitergefahren wird - berechnet nur die einfache Strecke statt Hin- und Rueckweg (siehe Site Visit Settings -> Mileage Item)."
 "Mileage Item","Fahrtkosten-Artikel"
 "Item whose Selling Price List rate is billed per kilometer when ""Calculate Mileage"" adds a line to the Site Visit's Sales Order (round trip by default, see ""One-Way Trip Only"" on the Site Visit). Leave empty to not bill mileage automatically.","Artikel, dessen Verkaufspreis pro Kilometer berechnet wird, wenn ""Kilometer berechnen"" eine Position im Auftrag des Site Visit anlegt (standardmaessig Hin- und Rueckweg, siehe ""Nur einfache Strecke"" am Site Visit). Leer lassen, um Fahrtkosten nicht automatisch abzurechnen."
+"Scheduling Conflict","Terminkonflikt"
+"This schedule overlaps {0} existing visit(s) for {1}:<ul>{2}</ul>","Diese Planung überschneidet sich mit {0} bereits vorhandenen Termin(en) für {1}:<ul>{2}</ul>"
+"Scheduling conflict: {0} already has {1} overlapping visit(s).","Terminkonflikt: {0} hat bereits {1} überlappende(n) Termin(e)."
+"Dispatch Board","Einsatzplan"

@@ -136,6 +136,68 @@ def _validate_signature(doc):
 		frappe.throw(_("Please capture the customer's signature before submitting."))
 
 
+def _intervals_overlap(a_start, a_end, b_start, b_end):
+	"""Exklusive Intervallgrenzen - ein Termin, der genau dort endet, wo der
+	naechste beginnt, gilt nicht als Konflikt (z. B. 10-11 Uhr gefolgt von
+	11-12 Uhr fuer denselben Techniker)."""
+	return get_datetime(a_start) < get_datetime(b_end) and get_datetime(b_start) < get_datetime(a_end)
+
+
+def _find_conflicts(employee, scheduled_start, scheduled_end, exclude_name=None):
+	"""Andere Site Visits desselben Mitarbeiters, deren geplantes Zeitfenster
+	sich mit dem uebergebenen ueberschneidet - fuer die Terminkonflikt-Warnung
+	(warn_schedule_conflicts unten, check_schedule_conflict fuer das Formular,
+	dispatch_board.py fuer den Einsatzplan). Ohne Mitarbeiter oder ohne
+	vollstaendiges Zeitfenster gibt es nichts zu pruefen. docstatus != 2:
+	stornierte Termine blockieren keinen Slot mehr."""
+	if not employee or not scheduled_start or not scheduled_end:
+		return []
+	return frappe.get_all(
+		"Site Visit",
+		filters={
+			"employee": employee,
+			"name": ["!=", exclude_name or ""],
+			"docstatus": ["!=", 2],
+			"scheduled_start": ["<", scheduled_end],
+			"scheduled_end": [">", scheduled_start],
+		},
+		fields=["name", "customer_name", "scheduled_start", "scheduled_end"],
+		order_by="scheduled_start",
+	)
+
+
+def warn_schedule_conflicts(doc):
+	"""validate()-Hook (siehe doctype/site_visit/site_visit.py): warnt, blockiert
+	aber nicht - der Dispatcher soll bewusst gegensteuern koennen, z. B. bei
+	einem kurzen Telefontermin parallel zu einem laufenden Vor-Ort-Einsatz."""
+	conflicts = _find_conflicts(doc.employee, doc.scheduled_start, doc.scheduled_end, exclude_name=doc.name)
+	if not conflicts:
+		return
+
+	from frappe.utils import format_datetime
+
+	lines = "".join(
+		f"<li>{c.name} - {c.customer_name or ''} "
+		f"({format_datetime(c.scheduled_start)} - {format_datetime(c.scheduled_end)})</li>"
+		for c in conflicts
+	)
+	frappe.msgprint(
+		_("This schedule overlaps {0} existing visit(s) for {1}:<ul>{2}</ul>").format(
+			len(conflicts), doc.employee, lines
+		),
+		title=_("Scheduling Conflict"),
+		indicator="orange",
+	)
+
+
+@frappe.whitelist()
+def check_schedule_conflict(employee, scheduled_start, scheduled_end, name=None):
+	"""Client-seitiger Vorab-Check (site_visit.js) - dieselbe Abfrage wie
+	warn_schedule_conflicts() oben, nur ohne msgprint (der Aufrufer entscheidet
+	selbst, wie er die Konflikte anzeigt)."""
+	return _find_conflicts(employee, scheduled_start, scheduled_end, exclude_name=name)
+
+
 def _get_work_segments(doc):
 	"""Zerlegt [from_time, to_time] anhand von doc.breaks in die tatsaechlich
 	gearbeiteten Zeitfenster - eines pro Segment zwischen zwei Pausen (bzw.

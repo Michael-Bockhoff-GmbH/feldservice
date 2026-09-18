@@ -112,7 +112,43 @@ frappe.ui.form.on('Site Visit', {
 	is_remote(frm) {
 		update_remote_ui(frm);
 	},
+
+	// Schnelle, nicht-blockierende Vorwarnung waehrend der Eingabe - die
+	// massgebliche Pruefung ist warn_schedule_conflicts() serverseitig
+	// (validate()-Hook, site_visit.py), die nach dem Speichern zusaetzlich
+	// die genauen ueberschneidenden Termine auflistet. Warnt nur, blockiert
+	// nicht - siehe dort fuer die Begruendung.
+	employee: check_schedule_conflict,
+	scheduled_start: check_schedule_conflict,
+	scheduled_end: check_schedule_conflict,
 });
+
+function check_schedule_conflict(frm) {
+	if (!frm.doc.employee || !frm.doc.scheduled_start || !frm.doc.scheduled_end) return;
+	frappe.call({
+		method: 'fieldservice.site_visit.site_visit.check_schedule_conflict',
+		args: {
+			employee: frm.doc.employee,
+			scheduled_start: frm.doc.scheduled_start,
+			scheduled_end: frm.doc.scheduled_end,
+			name: frm.doc.name,
+		},
+		callback(r) {
+			const conflicts = r.message || [];
+			if (!conflicts.length) return;
+			frappe.show_alert(
+				{
+					message: __('Scheduling conflict: {0} already has {1} overlapping visit(s).', [
+						frm.doc.employee,
+						conflicts.length,
+					]),
+					indicator: 'orange',
+				},
+				7
+			);
+		},
+	});
+}
 
 // Frappes Autocomplete-Control (frappe/public/js/frappe/form/controls/
 // autocomplete.js -> execute_query_if_exists) ruft die Suchmethode bei

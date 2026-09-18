@@ -1,0 +1,77 @@
+.dispatch-board-body {
+	padding: 15px;
+}
+
+.dispatch-board-grid {
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius-md);
+	overflow: hidden;
+}
+
+.dispatch-row {
+	display: flex;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.dispatch-row:last-child {
+	border-bottom: none;
+}
+
+.dispatch-row-label {
+	width: 160px;
+	flex-shrink: 0;
+	padding: 8px 10px;
+	font-weight: 500;
+	background: var(--fg-color);
+	border-right: 1px solid var(--border-color);
+}
+
+.dispatch-row-track {
+	position: relative;
+	flex-grow: 1;
+	min-height: 44px;
+	cursor: pointer;
+}
+
+.dispatch-ruler {
+	background: var(--subtle-fg);
+}
+
+.dispatch-ruler .dispatch-row-track {
+	min-height: 24px;
+	cursor: default;
+}
+
+.dispatch-ruler span {
+	position: absolute;
+	top: 2px;
+	font-size: 11px;
+	color: var(--text-muted);
+	transform: translateX(-4px);
+}
+
+.dispatch-block {
+	position: absolute;
+	top: 6px;
+	bottom: 6px;
+	border-radius: var(--border-radius-sm);
+	padding: 2px 6px;
+	font-size: 12px;
+	color: white;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	cursor: pointer;
+}
+
+.dispatch-block-draft {
+	background: var(--blue-400);
+}
+
+.dispatch-block-submitted {
+	background: var(--green-500);
+}
+
+.dispatch-block-conflict {
+	border: 2px solid var(--orange-500);
+}

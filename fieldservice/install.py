@@ -90,6 +90,7 @@ HOME_SHORTCUTS = [
 	{"label": "Site Visit", "type": "DocType", "link_to": "Site Visit", "doc_view": "List", "color": "Blue"},
 	{"label": "Timesheet", "type": "DocType", "link_to": "Timesheet", "doc_view": "List", "color": "Orange"},
 	{"label": "Zeit Projekt Einstellungen", "type": "DocType", "link_to": "Zeit Projekt Einstellungen", "color": "Green"},
+	{"label": "Dispatch Board", "type": "Page", "link_to": "dispatch-board", "color": "Purple"},
 ]
 
 # ---------------------------------------------------------------------------
