@@ -135,3 +135,6 @@
 "This schedule overlaps {0} existing visit(s) for {1}:<ul>{2}</ul>","Diese Planung überschneidet sich mit {0} bereits vorhandenen Termin(en) für {1}:<ul>{2}</ul>"
 "Scheduling conflict: {0} already has {1} overlapping visit(s).","Terminkonflikt: {0} hat bereits {1} überlappende(n) Termin(e)."
 "Dispatch Board","Einsatzplan"
+"General","Allgemein"
+"Time Zone","Zeitzone"
+"Time zone this business operates in - independent of the site-wide System Settings time zone (which this app deliberately does not rely on for displaying scheduled appointments, see Calendar view). Also the time zone future integrations (e.g. an Office 365/Outlook calendar sync) would use. Includes daylight saving time (summer time) automatically, like every IANA time zone name.","Zeitzone, in der dieses Unternehmen taetig ist - unabhaengig von der site-weiten Zeitzone in System Settings (auf die sich diese App fuer die Anzeige geplanter Termine bewusst nicht verlaesst, siehe Kalenderansicht). Auch die Zeitzone, die zukuenftige Anbindungen (z. B. ein Office-365/Outlook-Kalender-Sync) verwenden wuerden. Beruecksichtigt die Sommerzeit automatisch, wie jeder IANA-Zeitzonenname."

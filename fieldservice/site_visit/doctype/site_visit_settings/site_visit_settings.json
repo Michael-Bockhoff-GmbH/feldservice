@@ -4,6 +4,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "general_section",
+  "time_zone",
   "mileage_section",
   "ors_api_key",
   "default_start_address",
@@ -17,6 +19,18 @@
   "signature_required"
  ],
  "fields": [
+  {
+   "fieldname": "general_section",
+   "fieldtype": "Section Break",
+   "label": "General"
+  },
+  {
+   "default": "Europe/Berlin",
+   "description": "Time zone this business operates in - independent of the site-wide System Settings time zone (which this app deliberately does not rely on for displaying scheduled appointments, see Calendar view). Also the time zone future integrations (e.g. an Office 365/Outlook calendar sync) would use. Includes daylight saving time (summer time) automatically, like every IANA time zone name.",
+   "fieldname": "time_zone",
+   "fieldtype": "Select",
+   "label": "Time Zone"
+  },
   {
    "fieldname": "mileage_section",
    "fieldtype": "Section Break",

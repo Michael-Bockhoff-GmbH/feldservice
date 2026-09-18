@@ -392,6 +392,7 @@ die App-weiten Einstellungen von Site Visit:
 
 | Bereich | Feld | Bedeutung |
 |---|---|---|
+| Allgemein | Time Zone | Zeitzone des Unternehmens (Standard **Europe/Berlin**, volle IANA-Liste wie in Frappes eigenen System Settings, Sommerzeit automatisch berücksichtigt) — bewusst getrennt von der site-weiten System-Settings-Zeitzone, siehe "## Terminplanung" für den Hintergrund. |
 | Kilometer | OpenRouteService API Key | Kostenloser Key von [openrouteservice.org](https://openrouteservice.org) — ohne Key funktioniert "Kilometer berechnen" nicht. Feldtyp **Password**, daher verschlüsselt gespeichert und im Formular maskiert. |
 | Kilometer | Default Start Address | Freitext-Startpunkt, falls der Site Visit selbst keine eigene Startadresse hat. Leer = Standardadresse der Firma. |
 | Kilometer | Mileage Item | Artikel, dessen Verkaufspreis pro Kilometer als Fahrtkosten-Position im Auftrag berechnet wird. Leer = keine automatische Fahrtkosten-Abrechnung. |
@@ -527,6 +528,31 @@ zunächst nur ein lokaler Kalender innerhalb von ERPNext — für eine spätere
 Anbindung an Office 365/Outlook wären `scheduled_start`/`scheduled_end` die
 Felder, die ein Sync-Job gegen die Microsoft-Graph-API abgleichen müsste;
 das ist noch nicht gebaut.
+
+### Zeitzone
+
+Frappes eingebaute Kalenderansicht rechnet Termine standardmäßig zwischen
+der site-weiten **System Settings → Time Zone** und der Zeitzone des
+Nutzers um (`convert_to_user_tz`, Frappe-Kern). Stimmt System Settings
+nicht mit der tatsächlichen Zeitzone des Unternehmens überein — am
+18.09.2026 stand sie auf diesem Server auf "Asia/Kolkata" statt
+"Europe/Berlin", vermutlich ein nie angepasster Installations-Standard —,
+verschieben sich Termine im Kalender um Stunden oder fallen ganz aus dem
+sichtbaren Tag heraus. Da diese App nicht die site-weite System-Settings-
+Zeitzone ändern will (betrifft die ganze Site, nicht nur Site Visit),
+schaltet `site_visit_calendar.js` diese Umrechnung für Site Visit gezielt
+ab (`field_map.convertToUserTz = true`, siehe Kommentar dort) — Termine
+werden als reiner Klartext-Zeitpunkt angezeigt, genau wie im Formular und
+im Dispatch Board, unabhängig davon, was in System Settings steht.
+
+**Site Visit Settings → Time Zone** (Standard **Europe/Berlin**, volle
+IANA-Zeitzonenliste wie in Frappes eigenen System Settings, siehe
+`get_timezone_options()` in `site_visit_settings.py`) ändert an dieser
+Kalenderanzeige nichts direkt mehr — sie ist die für diese App
+maßgebliche, korrekt vorbelegte Zeitzone, unabhängig von System Settings,
+und der Anker für eine spätere Office-365/Outlook-Anbindung (die für
+Outlooks Kalender-API einen echten Zeitzonennamen braucht). Berücksichtigt
+die Sommerzeit automatisch, wie jeder IANA-Zeitzonenname.
 
 ### Terminkonflikte
 
