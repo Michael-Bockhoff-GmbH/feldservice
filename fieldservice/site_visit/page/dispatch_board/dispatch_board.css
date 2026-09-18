@@ -75,3 +75,90 @@
 .dispatch-block-conflict {
 	border: 2px solid var(--orange-500);
 }
+
+.dispatch-day-label {
+	position: absolute;
+	top: 2px;
+	font-size: 11px;
+	color: var(--text-muted);
+	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dispatch-day-divider {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	border-left: 1px dashed var(--border-color);
+}
+
+.dispatch-drag-selection {
+	position: absolute;
+	top: 4px;
+	bottom: 4px;
+	background: var(--blue-100);
+	border: 1px dashed var(--blue-500);
+	border-radius: var(--border-radius-sm);
+	pointer-events: none;
+}
+
+.dispatch-month-grid .dispatch-row-label {
+	min-height: 30px;
+}
+
+.dispatch-month-row {
+	display: flex;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.dispatch-month-row:last-child {
+	border-bottom: none;
+}
+
+.dispatch-month-cells {
+	flex-grow: 1;
+	display: flex;
+}
+
+.dispatch-month-cell {
+	flex: 1 1 0;
+	min-width: 0;
+	min-height: 30px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-right: 1px dashed var(--border-color);
+	cursor: pointer;
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.dispatch-month-cell:last-child {
+	border-right: none;
+}
+
+.dispatch-month-header {
+	background: var(--subtle-fg);
+	cursor: default;
+	font-weight: 500;
+}
+
+.dispatch-month-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 18px;
+	height: 18px;
+	padding: 0 4px;
+	border-radius: 9px;
+	background: var(--blue-400);
+	color: white;
+	font-size: 11px;
+}
+
+.dispatch-month-badge.dispatch-block-conflict {
+	background: var(--orange-500);
+	border: none;
+}

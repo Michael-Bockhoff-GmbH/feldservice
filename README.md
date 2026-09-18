@@ -564,17 +564,35 @@ alle Einsätze aller Mitarbeiter sehen dürfen (System Manager, Projects
 Manager) — ein Techniker sieht dort keinen Überblick über die Einsätze
 anderer.
 
-Ein Klick auf einen Termin öffnet ihn, ein Klick auf eine freie Stelle in
-der Zeile eines Technikers legt einen neuen Site Visit mit vorbelegtem
-Mitarbeiter und Startzeit an. **Kein Drag & Drop** zum Verschieben — bei
-einer Handvoll Technikern ist das Öffnen und Ändern zweier Datumsfelder
-(was ohnehin dieselbe Konfliktprüfung auslöst) genauso schnell, ohne den
-Mehraufwand für Touch-Unterstützung und erneute Serverprüfung beim
-Ziehen. Aus demselben Grund keine FullCalendar-Ressourcenansicht (mehrere
-Techniker als Spalten nebeneinander in einer echten Kalenderbibliothek):
-die in diesem Frappe mitgelieferte FullCalendar-Version enthält dafür kein
-Plugin — Ressourcenansichten sind Teil von FullCalendars kommerziell
-lizenziertem Premium-Bundle.
+Über die Ansicht-Auswahl oben lässt sich zwischen **Day**, **Work Week**
+(Mo–Fr), **Week** (Mo–So) und **Month** wechseln — alle vier fragen
+denselben Endpunkt nur mit unterschiedlichem Zeitraum ab
+(`get_dispatch_board_data(start_date, end_date)`):
+
+- **Day**: die Zeitachse wie gehabt, plus **Ziehen zum Anlegen** — bei
+  gedrückter Maustaste über die Zeile eines Technikers ziehen spannt den
+  gewünschten Zeitraum auf (auf 15 Minuten gerundet), beim Loslassen öffnet
+  sich ein neuer Site Visit mit vorbelegtem Mitarbeiter, Start- und
+  Endzeit. Ein einfacher Klick ohne nennenswerte Bewegung legt wie bisher
+  einen Termin mit einer Stunde Standarddauer an.
+- **Work Week/Week**: dieselbe Zeitachse über mehrere Tage gestreckt (ein
+  Klick legt einen Termin mit Standarddauer an einer geschätzten Uhrzeit
+  an) — Ziehen über mehrere Tage hinweg wäre mehrdeutig, dafür lieber kurz
+  in die Tagesansicht wechseln.
+- **Month**: pro Tag nur ein Zähl-Badge (rot bei mindestens einem
+  Terminkonflikt an dem Tag) statt einer Zeitachse — ein Klick auf einen
+  Tag springt direkt in dessen Tagesansicht.
+
+Ein Klick auf einen bestehenden Termin öffnet ihn. **Kein Drag & Drop zum
+Verschieben bestehender Termine** — bei einer Handvoll Technikern ist das
+Öffnen und Ändern zweier Datumsfelder (was ohnehin dieselbe
+Konfliktprüfung auslöst) genauso schnell, ohne den Mehraufwand für
+Touch-Unterstützung und erneute Serverprüfung beim Ziehen eines
+bestehenden Blocks. Aus demselben Grund keine FullCalendar-
+Ressourcenansicht (mehrere Techniker als Spalten nebeneinander in einer
+echten Kalenderbibliothek): die in diesem Frappe mitgelieferte
+FullCalendar-Version enthält dafür kein Plugin — Ressourcenansichten sind
+Teil von FullCalendars kommerziell lizenziertem Premium-Bundle.
 
 ## Fernarbeit
 

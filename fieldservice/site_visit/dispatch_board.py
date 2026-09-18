@@ -8,7 +8,8 @@ nebeneinander): der in diesem Frappe mitgelieferte FullCalendar-Kern
 (@fullcalendar/core u. a., siehe frappe/package.json) enthaelt keine
 Resource-Views - die sind Teil von FullCalendars kommerziell lizenziertem
 Premium-Bundle. Stattdessen eine einfache eigene Seite mit einer Zeile pro
-Techniker, ohne neue Abhaengigkeit."""
+Techniker, ohne neue Abhaengigkeit. Tag/Arbeitswoche/Woche/Monat sind reine
+Client-Ansichten desselben Zeitraum-Abrufs hier (siehe dispatch_board.js)."""
 
 import frappe
 
@@ -16,19 +17,24 @@ from fieldservice.site_visit.site_visit import _intervals_overlap
 
 
 @frappe.whitelist()
-def get_dispatch_board_data(date, employees=None):
-	"""Alle aktiven Mitarbeiter plus deren an diesem Tag geplante Site Visits
-	(unabhaengig vom Erfassungsstatus, aber nicht storniert). Nur fuer Rollen,
-	die ohnehin schon alle Einsaetze aller Mitarbeiter sehen duerfen (siehe
-	Berechtigungen in site_visit.json) - ein Techniker (Rolle "Employee") hat
-	dort nur if_owner-Zugriff und soll hier keinen Ueberblick ueber die
-	Einsaetze anderer Techniker bekommen."""
+def get_dispatch_board_data(start_date, end_date=None, employees=None):
+	"""Alle aktiven Mitarbeiter plus deren im Zeitraum [start_date, end_date]
+	(beide Tage eingeschlossen; end_date fehlt -> nur start_date, fuer die
+	Tagesansicht) geplante Site Visits, unabhaengig vom Erfassungsstatus,
+	aber nicht storniert. Der Bereich deckt Tag/Arbeitswoche/Woche/Monat
+	gleichermassen ab - welche Tage genau angezeigt werden, entscheidet die
+	Seite (dispatch_board.js), hier zaehlt nur der Gesamtzeitraum.
+
+	Nur fuer Rollen, die ohnehin schon alle Einsaetze aller Mitarbeiter sehen
+	duerfen (siehe Berechtigungen in site_visit.json) - ein Techniker (Rolle
+	"Employee") hat dort nur if_owner-Zugriff und soll hier keinen Ueberblick
+	ueber die Einsaetze anderer Techniker bekommen."""
 	frappe.only_for(("System Manager", "Projects Manager"))
 
 	from frappe.utils import add_to_date, get_datetime
 
-	day_start = get_datetime(date).replace(hour=0, minute=0, second=0, microsecond=0)
-	day_end = add_to_date(day_start, days=1)
+	range_start = get_datetime(start_date).replace(hour=0, minute=0, second=0, microsecond=0)
+	range_end = add_to_date(get_datetime(end_date or start_date).replace(hour=0, minute=0, second=0, microsecond=0), days=1)
 
 	employee_filters = {"status": "Active"}
 	if employees:
@@ -46,8 +52,8 @@ def get_dispatch_board_data(date, employees=None):
 		filters={
 			"employee": ["in", [t.name for t in technicians]],
 			"docstatus": ["!=", 2],
-			"scheduled_start": ["<", day_end],
-			"scheduled_end": [">", day_start],
+			"scheduled_start": ["<", range_end],
+			"scheduled_end": [">", range_start],
 		},
 		fields=["name", "employee", "customer", "customer_name", "scheduled_start", "scheduled_end", "docstatus"],
 		order_by="scheduled_start",
