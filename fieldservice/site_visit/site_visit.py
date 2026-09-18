@@ -28,11 +28,12 @@ def _as_administrator():
 
 
 def _linked_timesheet_is_submitted(timesheet):
-	"""Nur docstatus=1 zaehlt als gueltig verknuepft - nach einer Stornierung
-	storniert on_cancel() unten das Timesheet mit; ein amendetes Site Visit
-	haette ohne diese Pruefung weiter auf das stornierte Timesheet gezeigt,
-	statt unten ein neues anzulegen (doc.timesheet ist no_copy, bleibt beim
-	Amend also erhalten - anders als bei Duplicate)."""
+	"""Nur docstatus=1 zaehlt als gueltig verknuepft. Der eigentliche Schutz
+	gegen ein stornogeloeschtes Timesheet ist das db_set("timesheet", None)
+	in on_cancel() unten - diese Pruefung hier ist nur ein zusaetzliches
+	Netz fuer den Fall, dass ein verknuepftes Timesheet auf einem anderen
+	Weg als ueber die Stornierung dieses Site Visit storniert wurde (z. B.
+	direkt am Timesheet), waehrend doc.timesheet noch darauf zeigt."""
 	return frappe.db.get_value("Timesheet", timesheet, "docstatus") == 1
 
 
@@ -404,7 +405,17 @@ def _get_time_item(doc, segments):
 
 def on_cancel(doc, method=None):
 	"""Storniert das verknuepfte Timesheet mit, sofern es noch nicht
-	fakturiert wurde."""
+	fakturiert wurde.
+
+	Loescht anschliessend doc.timesheet (per db_set, nicht per doc.timesheet
+	= None + save - der Site Visit ist ja schon storniert): timesheet ist
+	no_copy, bleibt also bei einem spaeteren Amend erhalten - zeigt es dann
+	auf das hier gerade stornierte Timesheet, wirft Frappes eigene
+	_validate_links() beim Speichern des amendeten Entwurfs sofort
+	"Cannot link cancelled document", noch bevor before_submit ueberhaupt
+	laeuft (bestaetigt gegen frappe/model/document.py: _validate_links()
+	laeuft in insert()/save() VOR jedem eigenen Hook). Ohne diese Zeile waere
+	ein Amend nach einer Stornierung also gar nicht erst speicherbar."""
 	if not doc.timesheet:
 		return
 
@@ -421,6 +432,7 @@ def on_cancel(doc, method=None):
 			)
 
 	ts.cancel()
+	doc.db_set("timesheet", None)
 
 
 def check_app_permission():
