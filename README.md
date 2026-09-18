@@ -552,7 +552,9 @@ dort endet, wo der nächste beginnt, gilt nicht als Konflikt.
 ### Einsatzplan (Dispatch Board)
 
 Zusätzlich zur (nach Employee/Customer gefilterten) Kalenderansicht gibt es
-unter **Dispatch Board** (Home-Seite, "Site Visits"-Workspace, oder direkt
+unter **Dispatch Board** (Home-Seite, "Site Visits"-Workspace, ein Knopf
+direkt oben in der normalen Site-Visit-Listenansicht — `site_visit_list.js`,
+automatisch anhand des Dateinamens geladen —, oder direkt
 `/app/dispatch-board`) einen Überblick über **alle Techniker an einem Tag
 nebeneinander** — eine Zeile pro aktivem Mitarbeiter, die geplanten
 Site Visits als Zeitblöcke auf einer gemeinsamen Zeitachse
