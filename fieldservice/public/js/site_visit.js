@@ -38,11 +38,15 @@ frappe.ui.form.on('Site Visit', {
 		// mileage.py fuer den Hintergrund). ignore_validation ist noetig,
 		// da ControlAutocomplete sonst jeden Wert verwirft, der nicht
 		// exakt einem der zuletzt geladenen Vorschlaege entspricht - z. B.
-		// frei eingetippte Adressen ohne Vorschlagsauswahl.
+		// frei eingetippte Adressen ohne Vorschlagsauswahl. debounce_address_
+		// field() buendelt die sonst pro Tastendruck ausgeloesten Anfragen -
+		// siehe deren Definition unten fuer den Hintergrund.
 		['start_address', 'customer_address_override'].forEach((fieldname) => {
 			frm.set_query(fieldname, () => 'fieldservice.site_visit.mileage.search_addresses');
 			const field = frm.get_field(fieldname);
-			if (field) field.df.ignore_validation = 1;
+			if (!field) return;
+			field.df.ignore_validation = 1;
+			debounce_address_field(field);
 		});
 
 		frappe.db.get_doc('Site Visit Settings').then((settings) => {
@@ -109,6 +113,22 @@ frappe.ui.form.on('Site Visit', {
 		update_remote_ui(frm);
 	},
 });
+
+// Frappes Autocomplete-Control (frappe/public/js/frappe/form/controls/
+// autocomplete.js -> execute_query_if_exists) ruft die Suchmethode bei
+// jedem Tastendruck ohne jegliches Debouncing auf - ohne dieses Wrapping
+// muesste search_addresses() das serverseitig abfedern (frueher per
+// time.sleep(), das dabei einen ganzen Worker blockierte, siehe mileage.py).
+// Ueberschreibt hier nur die Methode auf der eigenen Feldinstanz, kein
+// Patch am Frappe-Kern selbst.
+function debounce_address_field(field, delay = 400) {
+	let timer = null;
+	const original = field.execute_query_if_exists.bind(field);
+	field.execute_query_if_exists = function (term) {
+		clearTimeout(timer);
+		timer = setTimeout(() => original(term), delay);
+	};
+}
 
 // Fernarbeit: Unterschrift ausblenden ODER Link zum Unterzeichnen an den
 // Kunden schicken - je nach Site Visit Settings -> Remote Visit Mode. Die

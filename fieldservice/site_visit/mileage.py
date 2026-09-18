@@ -41,7 +41,6 @@ REQUEST_TIMEOUT = 10
 # search_addresses(): siehe deren Docstring - Nominatims Nutzungsbedingungen
 # erlauben maximal 1 Anfrage pro Sekunde, insgesamt fuer die ganze Site.
 SEARCH_MIN_CHARS = 3
-SEARCH_DEBOUNCE_SECONDS = 0.4
 SEARCH_MIN_INTERVAL_SECONDS = 1.1
 SEARCH_CACHE_SECONDS = 300
 
@@ -51,8 +50,13 @@ def get_start_text(doc):
 	am Site Visit selbst, sonst die in Site Visit Settings hinterlegte
 	Standard-Startadresse, sonst die Standardadresse der Firma (dafuer noch
 	ein echter Address-Datensatz - Firmenadressen sind stabil genug, dass
-	sich ein eigener ERPNext-Datensatz dafuer lohnt)."""
-	if doc.start_address:
+	sich ein eigener ERPNext-Datensatz dafuer lohnt).
+
+	Das Freitextfeld start_address bleibt nach dem Entfernen des Hakens
+	"Different Start Location" stehen (Frappes depends_on blendet nur die
+	Anzeige aus, loescht den Feldwert nicht) - deshalb hier zusaetzlich das
+	Gating-Feld selbst pruefen, statt dem Feldwert allein zu vertrauen."""
+	if doc.override_start_address and doc.start_address:
 		return doc.start_address
 
 	settings = frappe.get_cached_doc("Site Visit Settings")
@@ -71,11 +75,13 @@ def get_destination_text(doc):
 	des Kunden - ausser "Don't Use Customer's Default Address" ist
 	angehakt, dann zaehlt ausschliesslich die Ueberschreibung (z. B. weil
 	die hinterlegte Kundenadresse fuer diesen Einsatz bekanntermassen nicht
-	stimmt) und es gibt ohne sie keine Zieladresse."""
-	if doc.customer_address_override:
-		return doc.customer_address_override
+	stimmt) und es gibt ohne sie keine Zieladresse.
+
+	customer_address_override bleibt nach dem Entfernen des Hakens stehen
+	(siehe get_start_text oben) - deshalb hier ebenfalls zuerst das
+	Gating-Feld pruefen, statt dem Feldwert allein zu vertrauen."""
 	if doc.ignore_customer_default_address:
-		return None
+		return doc.customer_address_override or None
 
 	from frappe.contacts.doctype.address.address import get_default_address
 
@@ -186,16 +192,22 @@ def search_addresses(txt):
 	das Tippen eines laengeren Adressnamens Nominatims Nutzungsbedingungen
 	(max. 1 Anfrage/Sekunde), was zu einer voruebergehenden Sperre fuehrt
 	("Suche ging kurz, dann nicht mehr"). Da dieses Control Frappe-Kern ist
-	und nicht gepatcht wird, passiert das Bremsen/Buendeln hier serverseitig:
+	und nicht gepatcht wird, passiert das eigentliche Debouncing clientseitig
+	(debounce_address_field() in site_visit.js/site_visit_settings.js) - ein
+	frueherer Versuch, das stattdessen hier per time.sleep() abzufedern,
+	blockierte dabei einen ganzen Web-Worker pro Tastendruck und war damit
+	selbst ein Verfuegbarkeitsrisiko. Hier bleiben nur zwei einfache,
+	nicht-blockierende Absicherungen:
 
 	1. Text unter SEARCH_MIN_CHARS Zeichen wird gar nicht erst gesucht.
-	2. "Debounce": kurz warten, dann abbrechen, falls in der Zwischenzeit
-	   schon ein neuerer Tastendruck fuer denselben Benutzer eingetroffen
-	   ist (dieser Aufruf ist damit veraltet).
-	3. Ergebnisse werden pro Suchtext eine Weile zwischengespeichert, damit
+	2. Ergebnisse werden pro Suchtext eine Weile zwischengespeichert, damit
 	   erneutes Tippen/Fokussieren desselben Texts keine neue Anfrage ausloest.
-	4. Als letzte Absicherung: tatsaechliche Nominatim-Anfragen bleiben
-	   mindestens SEARCH_MIN_INTERVAL_SECONDS auseinander.
+	3. Liegt die letzte tatsaechliche Nominatim-Anfrage noch keine
+	   SEARCH_MIN_INTERVAL_SECONDS zurueck, wird gar nicht erst angefragt
+	   (statt zu warten) - kein Vorschlag ist fuer diese Komfortfunktion
+	   unkritischer als ein blockierter Request. Ohne Sperre gegen echte
+	   Gleichzeitigkeit (kein Lock um den Cache-Zugriff) - bei wenigen
+	   gleichzeitigen Technikern ein vertretbares Restrisiko.
 
 	Gibt fertige, bereits lesbare Adresszeilen zurueck (label == value) -
 	kein Nachformatieren im Formular noetig wie bei Frappes eigener
@@ -213,18 +225,12 @@ def search_addresses(txt):
 	if cached is not None:
 		return cached
 
-	pending_key = f"site_visit_addr_pending::{frappe.session.user}"
-	cache.set_value(pending_key, txt, expires_in_sec=10)
-	time.sleep(SEARCH_DEBOUNCE_SECONDS)
-	if cache.get_value(pending_key) != txt:
-		return []  # durch einen neueren Tastendruck ueberholt
-
 	last_call_key = "site_visit_addr_last_call"
 	last_call = cache.get_value(last_call_key)
 	now = time.time()
-	if last_call is not None and (wait := SEARCH_MIN_INTERVAL_SECONDS - (now - last_call)) > 0:
-		time.sleep(wait)
-	cache.set_value(last_call_key, time.time(), expires_in_sec=10)
+	if last_call is not None and now - last_call < SEARCH_MIN_INTERVAL_SECONDS:
+		return []
+	cache.set_value(last_call_key, now, expires_in_sec=10)
 
 	import requests
 

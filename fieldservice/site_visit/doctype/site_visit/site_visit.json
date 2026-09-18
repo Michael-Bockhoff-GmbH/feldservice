@@ -49,6 +49,7 @@
   "remote_signature_sent_at",
   "section_break_verknuepfung",
   "timesheet",
+  "mileage_sales_order_item",
   "amended_from"
  ],
  "fields": [
@@ -329,6 +330,16 @@
    "label": "Timesheet",
    "no_copy": 1,
    "options": "Timesheet",
+   "read_only": 1
+  },
+  {
+   "description": "Row name of the mileage line in the linked Sales Order - internal bookkeeping so re-syncing updates it instead of duplicating it.",
+   "fieldname": "mileage_sales_order_item",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Mileage Sales Order Item",
+   "no_copy": 1,
+   "print_hide": 1,
    "read_only": 1
   },
   {

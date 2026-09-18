@@ -41,6 +41,7 @@
 "Sales Order {0} created and linked.","Auftrag {0} wurde angelegt und verknüpft."
 "Activity Type {0} has no Dienstleistungsartikel configured - required to create a Sales Order automatically.","Für Aktivitätsart {0} ist kein Dienstleistungsartikel hinterlegt - dieser ist nötig, um automatisch einen Auftrag anzulegen."
 "No price found for {0}, and Activity Type {1} has no Default Billing Rate set.","Für {0} wurde kein Preis gefunden, und Aktivitätsart {1} hat keinen Standard-Stundensatz hinterlegt."
+"No price found for {0} - required to bill mileage.","Für {0} wurde kein Preis gefunden - Kilometer können ohne Preis nicht abgerechnet werden."
 "Controls the billing rate in the automatically created Timesheet. Must be set before submitting - not required yet when saving as a draft (e.g. via the timer).","Steuert die Abrechnungsart im automatisch erzeugten Zeitblatt. Muss vor dem Buchen gesetzt sein - beim Speichern als Entwurf (z. B. per Timer) noch nicht erforderlich."
 "Breaks","Pausen"
 "Paused At","Pausiert um"

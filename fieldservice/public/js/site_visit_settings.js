@@ -7,6 +7,18 @@ frappe.ui.form.on('Site Visit Settings', {
 	onload(frm) {
 		frm.set_query('default_start_address', () => 'fieldservice.site_visit.mileage.search_addresses');
 		const field = frm.get_field('default_start_address');
-		if (field) field.df.ignore_validation = 1;
+		if (!field) return;
+		field.df.ignore_validation = 1;
+		debounce_address_field(field);
 	},
 });
+
+// Siehe site_visit.js fuer die ausfuehrliche Begruendung.
+function debounce_address_field(field, delay = 400) {
+	let timer = null;
+	const original = field.execute_query_if_exists.bind(field);
+	field.execute_query_if_exists = function (term) {
+		clearTimeout(timer);
+		timer = setTimeout(() => original(term), delay);
+	};
+}

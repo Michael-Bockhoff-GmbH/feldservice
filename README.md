@@ -432,11 +432,16 @@ Frappes Autocomplete-Feld fragt bei **jedem** Tastendruck neu an, ganz ohne
 eigenes Debouncing — was Nominatims Limit von maximal einer Anfrage pro
 Sekunde (site-weit) beim Tippen eines längeren Adressnamens allein schon
 reißen würde und zu einer vorübergehenden Sperre führt. Da das Frappe-Kern
-ist und nicht gepatcht wird, bremst/bündelt `search_addresses()` das selbst:
-Text unter 3 Zeichen wird ignoriert, ein kurzes Debounce verwirft veraltete
-(durch neuere Tastendrücke überholte) Anfragen, Ergebnisse werden pro
-Suchtext kurz zwischengespeichert, und tatsächliche Nominatim-Anfragen
-bleiben zusätzlich mindestens 1,1 Sekunden auseinander.
+ist und nicht gepatcht wird, bündelt `debounce_address_field()`
+(`public/js/site_visit.js`, analog in `site_visit_settings.js`) die Anfragen
+clientseitig, statt erst bei jedem Tastenanschlag zu suchen (ein früherer
+serverseitiger Debounce-Versuch per `time.sleep()` blockierte dabei jeweils
+einen ganzen Web-Worker und war selbst ein Verfügbarkeitsrisiko).
+`search_addresses()` bleiben nur zwei einfache, nicht-blockierende
+Absicherungen: Text unter 3 Zeichen wird ignoriert, Ergebnisse werden pro
+Suchtext kurz zwischengespeichert, und liegt die letzte tatsächliche
+Nominatim-Anfrage noch keine 1,1 Sekunden zurück, wird gar nicht erst
+angefragt (statt zu warten).
 
 Startadresse (in dieser Reihenfolge, erste gefundene gewinnt):
 
@@ -482,7 +487,23 @@ Rückweg** (`distance_km × 2`); der Haken **"One-Way Trip Only"** am Site
 Visit rechnet stattdessen nur die einfache Strecke ab, z. B. wenn der
 Techniker direkt zum nächsten Kunden weiterfährt statt zurückzufahren.
 Auch das ist rein optional: ohne berechnete Kilometer oder ohne
-konfiguriertes Mileage Item passiert nichts.
+konfiguriertes Mileage Item passiert nichts. Ein erneuter Sync-Lauf für
+denselben Site Visit (z. B. nach einer Korrektur per Amend, siehe
+"Stornieren & Amend" unten) aktualisiert die bestehende Fahrtkosten-Zeile
+im Auftrag, statt eine weitere hinzuzufügen — verfolgt über das interne,
+ausgeblendete Feld `mileage_sales_order_item`.
+
+### Stornieren & Amend
+
+Beim Stornieren wird das verknüpfte Timesheet mitstorniert (sofern noch
+nicht fakturiert, sonst lehnt ERPNext die Stornierung ab). Wird der Site
+Visit danach per Amend korrigiert (z. B. eine falsche `to_time`) und erneut
+gebucht, prüft `before_submit()` den Docstatus des verknüpften Timesheets:
+nur ein noch gebuchtes (docstatus 1) Timesheet zählt als gültig verknüpft
+und wird übernommen. Zeigt `timesheet` (das Feld bleibt beim Amend
+erhalten, `no_copy` hin oder her) stattdessen auf ein bereits storniertes
+Timesheet, läuft die volle Prüfung/Anlage erneut: neues Timesheet, erneute
+Unterschriftsprüfung, erneuter Sync des (unverändert verknüpften) Auftrags.
 
 ## Terminplanung
 

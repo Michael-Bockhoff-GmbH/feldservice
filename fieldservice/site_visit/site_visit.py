@@ -27,6 +27,15 @@ def _as_administrator():
 		frappe.local.form_dict = form_dict_backup
 
 
+def _linked_timesheet_is_submitted(timesheet):
+	"""Nur docstatus=1 zaehlt als gueltig verknuepft - nach einer Stornierung
+	storniert on_cancel() unten das Timesheet mit; ein amendetes Site Visit
+	haette ohne diese Pruefung weiter auf das stornierte Timesheet gezeigt,
+	statt unten ein neues anzulegen (doc.timesheet ist no_copy, bleibt beim
+	Amend also erhalten - anders als bei Duplicate)."""
+	return frappe.db.get_value("Timesheet", timesheet, "docstatus") == 1
+
+
 def before_submit(doc, method=None):
 	"""Legt ein Timesheet an, bucht es und verknuepft es - im selben Request
 	wie das Buchen des Site Visit selbst. Serverseitig, damit kein zweiter
@@ -41,7 +50,7 @@ def before_submit(doc, method=None):
 	vor dem Buchen geprueft. Statt eines vorhandenen Auftrags reicht auch
 	die angehakte "Create Sales Order" - siehe _create_sales_order unten,
 	die den Auftrag dann an dieser Stelle automatisch anlegt."""
-	if doc.timesheet:
+	if doc.timesheet and _linked_timesheet_is_submitted(doc.timesheet):
 		return
 
 	if not doc.customer:
@@ -203,11 +212,26 @@ def _sync_sales_order(doc):
 	if mileage_line:
 		trans_items.append(mileage_line)
 
+	# Namen vorher merken: update_child_qty_rate() gibt nichts zurueck und
+	# aktualisiert das hier geladene `so` nicht - fuer eine neu angelegte
+	# Kilometer-Zeile (kein docname im mileage_line-Dict) ist das die einzige
+	# Moeglichkeit, ihren Zeilennamen danach wiederzufinden (siehe unten).
+	names_before = {row.name for row in so.items}
+
 	with _as_administrator():
 		update_child_qty_rate("Sales Order", frappe.as_json(trans_items), so.name)
 
 	for row in pending_items:
 		row.added_to_order = 1
+
+	if mileage_line:
+		if "docname" in mileage_line:
+			doc.mileage_sales_order_item = mileage_line["docname"]
+		else:
+			so.reload()
+			new_row = next((row.name for row in so.items if row.name not in names_before), None)
+			if new_row:
+				doc.mileage_sales_order_item = new_row
 
 
 def _mileage_billable(doc):
@@ -231,7 +255,15 @@ def _get_mileage_line(doc, so):
 	Der Preis kommt aus der Standard-Verkaufspreisliste des Auftrags
 	(dieselbe Preisfindung, die auch beim normalen Hinzufuegen eines
 	Artikels im Auftrag greift) - kein manuell eingetragener Satz wie bei
-	den Zusatzartikeln oben, da hier niemand von Hand einen Preis eintraegt."""
+	den Zusatzartikeln oben, da hier niemand von Hand einen Preis eintraegt.
+	Ohne ermittelbaren Preis wird abgebrochen statt mit rate=0 stillschweigend
+	umsonst abzurechnen (analog zu _get_time_item oben).
+
+	Traegt "docname" ein, wenn fuer diesen Site Visit schon eine Fahrtkosten-
+	Zeile im Auftrag existiert (mileage_sales_order_item) - sonst wuerde ein
+	erneuter Lauf von _sync_sales_order() (z. B. nach einem Amend, siehe
+	before_submit) bei jedem Aufruf eine weitere Zeile anhaengen statt die
+	bestehende zu aktualisieren."""
 	if not _mileage_billable(doc):
 		return None
 
@@ -242,9 +274,16 @@ def _get_mileage_line(doc, so):
 	billed_km = doc.distance_km if doc.one_way_only else doc.distance_km * 2
 
 	prices = get_item_price({"price_list": so.selling_price_list, "uom": item.stock_uom}, item.name)
-	rate = prices[0]["price_list_rate"] if prices else 0
+	if not prices:
+		frappe.throw(_("No price found for {0} - required to bill mileage.").format(item.name))
 
-	return {"item_code": item.name, "qty": billed_km, "rate": rate, "uom": item.stock_uom}
+	line = {"item_code": item.name, "qty": billed_km, "rate": prices[0]["price_list_rate"], "uom": item.stock_uom}
+
+	existing_row = next((row for row in so.items if row.name == doc.mileage_sales_order_item), None)
+	if existing_row and existing_row.item_code == item.name:
+		line["docname"] = existing_row.name
+
+	return line
 
 
 @frappe.whitelist()
