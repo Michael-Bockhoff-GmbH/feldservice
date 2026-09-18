@@ -94,6 +94,23 @@ HOME_SHORTCUTS = [
 ]
 
 # ---------------------------------------------------------------------------
+# Verknuepfungen auf der eigenen "Site Visits"-Workspace
+#
+# Zusaetzlich zur bereits per JSON-Fixture ausgelieferten Karte (site_visit/
+# workspace/site_visits/site_visits.json) - direkt per Python statt allein
+# ueber die JSON-Datei, da Frappes Fixture-Sync bestehende Workspace-
+# Datensaetze auf bereits installierten Benches nicht zuverlaessig neu
+# einliest (frueher schon bei einer Sidebar-Bereinigung in dieser App
+# beobachtet). Muss nach dem Schema-Sync laufen (post_model_sync-Patch),
+# da "dispatch-board" (Page) vorher noch nicht existiert.
+# ---------------------------------------------------------------------------
+SITE_VISITS_WORKSPACE = "Site Visits"
+SITE_VISITS_WORKSPACE_LINKS = [
+	{"label": "Calendar", "link_type": "DocType", "link_to": "Site Visit", "doc_view": "Calendar"},
+	{"label": "Dispatch Board", "link_type": "Page", "link_to": "dispatch-board"},
+]
+
+# ---------------------------------------------------------------------------
 # Customer Reference (Sales Order.po_no) verpflichtend machen
 #
 # Gilt fuer JEDEN Auftrag in ERPNext, nicht nur fuer ueber Site Visit
@@ -111,6 +128,7 @@ def after_install():
 
 	_pdf_on_submit_enable()
 	_home_workspace_enable()
+	_site_visits_workspace_links_enable()
 	_po_no_required_enable()
 
 
@@ -255,6 +273,41 @@ def _home_workspace_disable():
 
 	home.save(ignore_permissions=True)
 	click.secho("IT Support mit Außendienst: Verknuepfungen von der Home-Seite entfernt.", fg="yellow")
+
+
+def _site_visits_workspace_links_enable():
+	"""Ergaenzt SITE_VISITS_WORKSPACE_LINKS auf der eigenen "Site Visits"-
+	Workspace - ueberspringt bereits vorhandene Eintraege. Kein Gegenstueck
+	fuer before_uninstall noetig: die ganze Workspace gehoert dieser App
+	(eigenes Modul "Site Visit") und verschwindet beim Deinstallieren
+	ohnehin komplett, anders als die gemeinsam genutzte "Home"-Workspace."""
+	if not frappe.db.exists("Workspace", SITE_VISITS_WORKSPACE):
+		return
+
+	ws = frappe.get_doc("Workspace", SITE_VISITS_WORKSPACE)
+	existing_labels = {row.label for row in ws.links}
+	neu = [link for link in SITE_VISITS_WORKSPACE_LINKS if link["label"] not in existing_labels]
+	if not neu:
+		return
+
+	for link in neu:
+		ws.append(
+			"links",
+			{
+				"type": "Link",
+				"link_type": link["link_type"],
+				"link_to": link["link_to"],
+				"label": link["label"],
+				"doc_view": link.get("doc_view", ""),
+				"color": "Grey",
+			},
+		)
+	ws.save(ignore_permissions=True)
+	click.secho(
+		f"IT Support mit Außendienst: {len(neu)} Verknuepfung(en) auf der Site-Visits-Workspace ergaenzt "
+		f"({', '.join(link['label'] for link in neu)}).",
+		fg="green",
+	)
 
 
 def _po_no_required_enable():
