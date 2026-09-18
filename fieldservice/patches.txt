@@ -1,6 +1,9 @@
 # Patches werden hier in Ausfuehrungsreihenfolge eingetragen
+[pre_model_sync]
 fieldservice.patches.add_timesheet_detail_sales_order
 fieldservice.patches.add_home_workspace_shortcuts
 fieldservice.patches.add_po_no_required
 fieldservice.patches.revert_geolocation_autocomplete
+
+[post_model_sync]
 fieldservice.patches.add_dispatch_board_shortcut
